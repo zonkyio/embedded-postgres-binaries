@@ -1,0 +1,133 @@
+apply plugin: 'java'
+apply plugin: 'maven'
+apply plugin: 'signing'
+
+ext {
+    ossrhUsername = project.findProperty('ossrhUsername')
+    ossrhPassword = project.findProperty('ossrhPassword')
+    postgresVersion = project.findProperty('postgresVersion')
+}
+
+group 'io.zonky.test.postgres'
+
+sourceCompatibility = 1.6
+
+repositories {
+    jcenter()
+    mavenCentral()
+}
+
+task generatePostgresBundles(type: Exec) {
+    doFirst {
+        if (!project.version || project.version == 'unspecified') {
+            throw new GradleException("The 'version' property must be set")
+        }
+        if (!postgresVersion) {
+            throw new GradleException("The 'postgresVersion' property must be set")
+        }
+    }
+    commandLine 'sh', './repack-postgres.sh', "$postgresVersion"
+}
+
+task windowsJar(type: Jar, dependsOn: generatePostgresBundles) {
+    from sourceSets.main.output
+    include 'postgres-windows-*.txz'
+    appendix = 'windows'
+}
+
+task darwinJar(type: Jar, dependsOn: generatePostgresBundles) {
+    from sourceSets.main.output
+    include 'postgres-darwin-*.txz'
+    appendix = 'darwin'
+}
+
+task linuxJar(type: Jar, dependsOn: generatePostgresBundles) {
+    from sourceSets.main.output
+    include 'postgres-linux-*.txz'
+    appendix = 'linux'
+}
+
+jar {
+    enabled = false
+    dependsOn windowsJar
+    dependsOn darwinJar
+    dependsOn linuxJar
+}
+
+artifacts {
+    archives windowsJar, darwinJar, linuxJar
+}
+
+configurations.archives.with {
+    artifacts.removeAll artifacts.findAll { !it.archiveTask.enabled }
+}
+
+signing {
+    required { gradle.taskGraph.hasTask("uploadArchives") }
+    sign configurations.archives
+}
+
+uploadArchives {
+    repositories {
+        mavenDeployer {
+            beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+
+            repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
+                authentication(userName: ossrhUsername, password: ossrhPassword)
+            }
+
+            snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots/") {
+                authentication(userName: ossrhUsername, password: ossrhPassword)
+            }
+
+            pom.project {
+                packaging 'jar'
+                description 'A lightweight bundle of PostgreSQL database with reduced size.'
+                url 'https://github.com/zonkyio/embedded-postgres-binaries'
+
+                scm {
+                    connection 'scm:git:git://github.com/zonkyio/embedded-postgres-binaries.git'
+                    developerConnection 'scm:git:ssh://github.com:zonkyio/embedded-postgres-binaries.git'
+                    url 'https://github.com/zonkyio/embedded-postgres-binaries/tree/master'
+                }
+
+                licenses {
+                    license {
+                        name 'The Apache License, Version 2.0'
+                        url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                    }
+                }
+
+                developers {
+                    developer {
+                        name 'Roman Pichlik'
+                        email 'roman.pichlik@zonky.cz'
+                    }
+                    developer {
+                        name 'Tomas Vanek'
+                        email 'tomas.vanek@zonky.cz'
+                    }
+                    developer {
+                        name 'Developers Zonky'
+                        email 'developers@zonky.cz'
+                    }
+                }
+            }
+        }
+    }
+}
+
+def installer = install.repositories.mavenInstaller
+def deployer = uploadArchives.repositories.mavenDeployer
+
+[installer, deployer]*.addFilter("${project.name}-windows") { artifact, file ->
+    artifact.name == "${project.name}-windows"
+}
+
+[installer, deployer]*.addFilter("${project.name}-darwin") { artifact, file ->
+    artifact.name == "${project.name}-darwin"
+}
+
+[installer, deployer]*.addFilter("${project.name}-linux") { artifact, file ->
+    artifact.name == "${project.name}-linux"
+}

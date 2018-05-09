@@ -1,11 +1,16 @@
+
 apply plugin: 'java'
-apply plugin: 'maven'
+apply plugin: 'maven-publish'
 apply plugin: 'signing'
 
 ext {
     ossrhUsername = project.findProperty('ossrhUsername')
     ossrhPassword = project.findProperty('ossrhPassword')
-    postgresVersion = project.findProperty('postgresVersion')
+
+    pgVersion = project.findProperty('pgVersion') ?: ("${project.version}" - '-SNAPSHOT')
+    pgBinVersion = project.findProperty('pgBinVersion') ?: "${pgVersion}-1"
+    archName = project.findProperty('archName') ?: 'x86_64'
+    distName = project.findProperty('distName') ?: ''
 }
 
 group 'io.zonky.test.postgres'
@@ -17,117 +22,274 @@ repositories {
     mavenCentral()
 }
 
-task generatePostgresBundles(type: Exec) {
+task validateInputs {
     doFirst {
         if (!project.version || project.version == 'unspecified') {
             throw new GradleException("The 'version' property must be set")
         }
-        if (!postgresVersion) {
-            throw new GradleException("The 'postgresVersion' property must be set")
+        if (distName && distName != 'alpine' && distName != 'ubuntu') {
+            throw new GradleException("Currently only the 'alpine' and 'ubuntu' distributions are supported")
+        }
+        if (archName != 'x86_64') {
+            throw new GradleException("Currently supported architectures: x86_64")
         }
     }
-    commandLine 'sh', './repack-postgres.sh', "$postgresVersion"
 }
 
-task windowsJar(type: Jar, dependsOn: generatePostgresBundles) {
+task generateStandardPostgresBundles(type: Exec, dependsOn: validateInputs) {
+    inputs.property('pgBinVersion', pgVersion)
+    inputs.property('archName', archName)
+    inputs.property('distName', distName)
+
+    inputs.file('repack-postgres.sh')
+    outputs.dir("$buildDir/resources/main")
+
+    commandLine 'sh', './repack-postgres.sh', "$pgBinVersion"
+}
+
+task generateAlpinePostgresBundle(type: Exec, dependsOn: validateInputs) {
+    inputs.property('pgVersion', pgVersion)
+    inputs.property('archName', archName)
+    inputs.property('distName', distName)
+
+    inputs.file('repack-postgres-alpine.sh')
+    outputs.dir("$buildDir/resources/main")
+
+    commandLine 'sh', './repack-postgres-alpine.sh', "$pgVersion", "$archName"
+}
+
+//task generateUbuntuPostgresBundle(type: Exec, dependsOn: validateInputs) {
+//    commandLine 'sh', './repack-postgres-ubuntu.sh', "$archName"
+//}
+
+task windowsJar(type: Jar, dependsOn: generateStandardPostgresBundles) {
+    enabled = !distName && archName == 'x86_64'
     from sourceSets.main.output
-    include 'postgres-windows-*.txz'
+    include 'postgres-windows-x86_64.txz'
     appendix = 'windows'
 }
 
-task darwinJar(type: Jar, dependsOn: generatePostgresBundles) {
+task darwinJar(type: Jar, dependsOn: generateStandardPostgresBundles) {
+    enabled = !distName && archName == 'x86_64'
     from sourceSets.main.output
-    include 'postgres-darwin-*.txz'
+    include 'postgres-darwin-x86_64.txz'
     appendix = 'darwin'
 }
 
-task linuxJar(type: Jar, dependsOn: generatePostgresBundles) {
+task linuxJar(type: Jar, dependsOn: generateStandardPostgresBundles) {
+    enabled = !distName && archName == 'x86_64'
     from sourceSets.main.output
-    include 'postgres-linux-*.txz'
+    include 'postgres-linux-x86_64.txz'
     appendix = 'linux'
 }
 
+task alpineJar(type: Jar, dependsOn: generateAlpinePostgresBundle) {
+    enabled = distName == 'alpine' || (!distName && archName == 'x86_64')
+    from sourceSets.main.output
+    include "postgres-linux-${archName}-alpine_linux.txz"
+    appendix = "linux${archName != 'x86_64' ? '-' + archName : ''}-alpine"
+}
+
+//task ubuntuJar(type: Jar, dependsOn: generateUbuntuPostgresBundle) {
+//    enabled = distName == 'ubuntu' || (!distName && archName != 'x86_64')
+//    from sourceSets.main.output
+//
+//    include "postgres-linux-${archName}-ubuntu.txz"
+//
+//    if (!distName) {
+//        rename "postgres-linux-${archName}-ubuntu.txz", "postgres-linux-${archName}.txz"
+//        appendix = "linux${archName != 'x86_64' ? '-' + archName : ''}"
+//    } else {
+//        appendix = "linux${archName != 'x86_64' ? '-' + archName : ''}-ubuntu"
+//    }
+//
+////    include "postgres-linux-${archName}${distName ? '-' + distName : ''}.txz"
+////    appendix = "linux${archName != 'x86_64' ? '-' + archName : ''}${distName ? '-' + distName : ''}"
+//}
+
 jar {
     enabled = false
-    dependsOn windowsJar
-    dependsOn darwinJar
-    dependsOn linuxJar
+}
+
+configurations {
+    bundles
 }
 
 artifacts {
-    archives windowsJar, darwinJar, linuxJar
+    bundles windowsJar, darwinJar, linuxJar, alpineJar
+    archives configurations.bundles.artifacts
 }
 
-configurations.archives.with {
+[configurations.bundles, configurations.archives]*.with {
     artifacts.removeAll artifacts.findAll { !it.archiveTask.enabled }
 }
 
 signing {
-    required { gradle.taskGraph.hasTask("uploadArchives") }
+    required { project.hasProperty('signing.keyId') }
     sign configurations.archives
 }
 
-uploadArchives {
+task signBomPom(type: Sign, group: 'signing') {
+    sign project.file("$buildDir/publications/bom/pom-default.xml")
+    outputs.upToDateWhen { false }
+}
+
+configurations.bundles.artifacts.all { archive ->
+    def publicationName = archive.archiveTask.name - 'Jar'
+    task "sign${publicationName.capitalize()}Pom"(type: Sign, group: 'signing') {
+        sign project.file("$buildDir/publications/${publicationName}/pom-default.xml")
+        outputs.upToDateWhen { false }
+    }
+}
+
+tasks.whenTaskAdded { task ->
+    def matcher = task.name =~ /^generatePomFileFor(\w+)Publication$/
+    if (matcher.matches()) {
+        def signPom = tasks.findByName("sign${matcher[0][1]}Pom")
+        if (signPom) {
+            signPom.dependsOn task
+        }
+    }
+}
+
+tasks.whenTaskAdded { task ->
+    def matcher = task.name =~ /^publish(\w+)PublicationTo.*$/
+    if (matcher.matches()) {
+        def signPom = tasks.findByName("sign${matcher[0][1]}Pom")
+        if (signPom) {
+            task.dependsOn signPom
+        }
+        task.dependsOn signArchives
+    }
+}
+
+publishing {
+    publications {
+        configurations.bundles.artifacts.all { archive ->
+            def publicationName = archive.archiveTask.name - 'Jar'
+            "$publicationName"(MavenPublication) {
+                artifactId "${archive.name}"
+                artifact archive
+                configurePom(pom, 'A lightweight bundle of PostgreSQL database with reduced size')
+
+                pom.withXml {
+                    def root = asNode()
+                    root.get('packaging').first().value = 'jar'
+                }
+
+                signing.required && project.tasks.withType(Sign) {
+                    signatures.findAll { it.getToSignArtifact()?.name == "${archive.name}" || it.file.path.startsWith("$buildDir/publications/$publicationName") }.each {
+                        artifact source: it.file, classifier: it.classifier ?: null, extension: it.type == 'xml.asc' ? 'pom.asc' : it.type
+                    }
+                }
+            }
+        }
+        if (configurations.bundles.artifacts.size() > 1) {
+            bom(MavenPublication) {
+                artifactId 'embedded-postgres-binaries-bom'
+                configurePom(pom, 'Bill of Materials')
+
+                pom.withXml {
+                    def root = asNode()
+                    root.get('packaging').first().value = 'pom'
+                    root.children().last() + {
+                        resolveStrategy = Closure.DELEGATE_FIRST
+
+                        dependencyManagement {
+                            dependencies {
+                                configurations.bundles.artifacts.all { archive ->
+                                    dependency {
+                                        groupId "${project.group}"
+                                        artifactId "${archive.name}"
+                                        version "${project.version}"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                signing.required && project.tasks.getByName('signBomPom') {
+                    signatures.all {
+                        artifact source: it.file, classifier: it.classifier ?: null, extension: it.type == 'xml.asc' ? 'pom.asc' : it.type
+                    }
+                }
+            }
+        }
+    }
     repositories {
-        mavenDeployer {
-            beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+        maven {
+            if (!project.version.endsWith('-SNAPSHOT')) {
+                url "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
+            } else {
+                url "https://oss.sonatype.org/content/repositories/snapshots/"
+            }
+            credentials {
+                username ossrhUsername
+                password ossrhPassword
+            }
+        }
+    }
+}
 
-            repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
-                authentication(userName: ossrhUsername, password: ossrhPassword)
+def configurePom(pom, desc) {
+    pom.withXml {
+        def root = asNode()
+
+        root.children().last() + {
+            resolveStrategy = Closure.DELEGATE_FIRST
+
+            description desc
+            url 'https://github.com/zonkyio/embedded-postgres-binaries'
+
+            scm {
+                connection 'scm:git:git://github.com/zonkyio/embedded-postgres-binaries.git'
+                developerConnection 'scm:git:ssh://github.com:zonkyio/embedded-postgres-binaries.git'
+                url 'https://github.com/zonkyio/embedded-postgres-binaries/tree/master'
             }
 
-            snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots/") {
-                authentication(userName: ossrhUsername, password: ossrhPassword)
+            licenses {
+                license {
+                    name 'The Apache License, Version 2.0'
+                    url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                }
             }
 
-            pom.project {
-                packaging 'jar'
-                description 'A lightweight bundle of PostgreSQL database with reduced size.'
-                url 'https://github.com/zonkyio/embedded-postgres-binaries'
-
-                scm {
-                    connection 'scm:git:git://github.com/zonkyio/embedded-postgres-binaries.git'
-                    developerConnection 'scm:git:ssh://github.com:zonkyio/embedded-postgres-binaries.git'
-                    url 'https://github.com/zonkyio/embedded-postgres-binaries/tree/master'
+            developers {
+                developer {
+                    name 'Roman Pichlik'
+                    email 'roman.pichlik@zonky.cz'
                 }
-
-                licenses {
-                    license {
-                        name 'The Apache License, Version 2.0'
-                        url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
-                    }
+                developer {
+                    name 'Tomas Vanek'
+                    email 'tomas.vanek@zonky.cz'
                 }
-
-                developers {
-                    developer {
-                        name 'Roman Pichlik'
-                        email 'roman.pichlik@zonky.cz'
-                    }
-                    developer {
-                        name 'Tomas Vanek'
-                        email 'tomas.vanek@zonky.cz'
-                    }
-                    developer {
-                        name 'Developers Zonky'
-                        email 'developers@zonky.cz'
-                    }
+                developer {
+                    name 'Developers Zonky'
+                    email 'developers@zonky.cz'
                 }
             }
         }
     }
 }
 
-def installer = install.repositories.mavenInstaller
-def deployer = uploadArchives.repositories.mavenDeployer
-
-[installer, deployer]*.addFilter("${project.name}-windows") { artifact, file ->
-    artifact.name == "${project.name}-windows"
+task install(group: 'publishing') {
+    configurations.bundles.artifacts.all { archive ->
+        def publicationName = archive.archiveTask.name - 'Jar'
+        dependsOn "publish${publicationName.capitalize()}PublicationToMavenLocal"
+    }
 }
 
-[installer, deployer]*.addFilter("${project.name}-darwin") { artifact, file ->
-    artifact.name == "${project.name}-darwin"
+task uploadArchives(group: 'publishing') {
+    configurations.bundles.artifacts.all { archive ->
+        def publicationName = archive.archiveTask.name - 'Jar'
+        dependsOn "publish${publicationName.capitalize()}PublicationToMavenRepository"
+    }
 }
 
-[installer, deployer]*.addFilter("${project.name}-linux") { artifact, file ->
-    artifact.name == "${project.name}-linux"
+tasks.whenTaskAdded { task ->
+    if (task.name == 'generatePomFileForBomPublication') {
+        install.dependsOn 'publishBomPublicationToMavenLocal'
+        uploadArchives.dependsOn 'publishBomPublicationToMavenRepository'
+    }
 }

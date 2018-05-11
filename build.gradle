@@ -9,8 +9,11 @@ ext {
 
     pgVersion = project.findProperty('pgVersion') ?: ("${project.version}" - '-SNAPSHOT')
     pgBinVersion = project.findProperty('pgBinVersion') ?: "${pgVersion}-1"
-    archName = project.findProperty('archName') ?: 'x86_64'
+    archName = project.findProperty('archName') ?: 'amd64'
     distName = project.findProperty('distName') ?: ''
+    dockerImage = project.findProperty('dockerImage') ?: ''
+
+    normArchName = normalizeArchName("$archName")
 }
 
 group 'io.zonky.test.postgres'
@@ -24,22 +27,33 @@ repositories {
 
 task validateInputs {
     doFirst {
+        println "version:       ${project.version}"
+        println "pgVersion:     $pgVersion"
+        println "pgBinVersion:  $pgBinVersion"
+        println "archName:      $archName"
+        println "normArchName:  $normArchName"
+
+        if (distName) {
+            println "distName:      $distName"
+        }
+        if (dockerImage) {
+            println "dockerImage:   $dockerImage"
+        }
+
         if (!project.version || project.version == 'unspecified') {
             throw new GradleException("The 'version' property must be set")
         }
         if (distName && distName != 'alpine' && distName != 'ubuntu') {
             throw new GradleException("Currently only the 'alpine' and 'ubuntu' distributions are supported")
         }
-        if (archName != 'x86_64') {
-            throw new GradleException("Currently supported architectures: x86_64")
+        if (!(archName ==~ /^[a-z0-9]+$/)) {
+            throw new GradleException("The 'archName' property must contain only alphanumeric characters")
         }
     }
 }
 
 task generateStandardPostgresBundles(type: Exec, dependsOn: validateInputs) {
     inputs.property('pgBinVersion', pgVersion)
-    inputs.property('archName', archName)
-    inputs.property('distName', distName)
 
     inputs.file('repack-postgres.sh')
     outputs.dir("$buildDir/resources/main")
@@ -50,62 +64,70 @@ task generateStandardPostgresBundles(type: Exec, dependsOn: validateInputs) {
 task generateAlpinePostgresBundle(type: Exec, dependsOn: validateInputs) {
     inputs.property('pgVersion', pgVersion)
     inputs.property('archName', archName)
-    inputs.property('distName', distName)
+    inputs.property('dockerImage', dockerImage)
 
     inputs.file('repack-postgres-alpine.sh')
     outputs.dir("$buildDir/resources/main")
 
-    commandLine 'sh', './repack-postgres-alpine.sh', "$pgVersion", "$archName"
+    commandLine 'sh', './repack-postgres-alpine.sh', "$pgVersion", "$archName", "$dockerImage"
 }
 
-//task generateUbuntuPostgresBundle(type: Exec, dependsOn: validateInputs) {
-//    commandLine 'sh', './repack-postgres-ubuntu.sh', "$archName"
-//}
+task generateUbuntuPostgresBundle(type: Exec, dependsOn: validateInputs) {
+    inputs.property('pgVersion', pgVersion)
+    inputs.property('archName', archName)
+    inputs.property('dockerImage', dockerImage)
+
+    inputs.file('repack-postgres-ubuntu.sh')
+    outputs.dir("$buildDir/resources/main")
+
+    commandLine 'sh', './repack-postgres-ubuntu.sh', "$pgVersion", "$archName", "$dockerImage"
+}
 
 task windowsJar(type: Jar, dependsOn: generateStandardPostgresBundles) {
-    enabled = !distName && archName == 'x86_64'
+    enabled = !distName && archName == 'amd64' && !dockerImage
     from sourceSets.main.output
     include 'postgres-windows-x86_64.txz'
     appendix = 'windows'
 }
 
 task darwinJar(type: Jar, dependsOn: generateStandardPostgresBundles) {
-    enabled = !distName && archName == 'x86_64'
+    enabled = !distName && archName == 'amd64' && !dockerImage
     from sourceSets.main.output
     include 'postgres-darwin-x86_64.txz'
     appendix = 'darwin'
 }
 
 task linuxJar(type: Jar, dependsOn: generateStandardPostgresBundles) {
-    enabled = !distName && archName == 'x86_64'
+    enabled = !distName && archName == 'amd64' && !dockerImage
     from sourceSets.main.output
     include 'postgres-linux-x86_64.txz'
     appendix = 'linux'
 }
 
 task alpineJar(type: Jar, dependsOn: generateAlpinePostgresBundle) {
-    enabled = distName == 'alpine' || (!distName && archName == 'x86_64')
+    enabled = distName == 'alpine' || (!distName && archName == 'amd64' && !dockerImage)
     from sourceSets.main.output
+
     include "postgres-linux-${archName}-alpine_linux.txz"
-    appendix = "linux${archName != 'x86_64' ? '-' + archName : ''}-alpine"
+    rename "postgres-linux-${archName}-alpine_linux.txz", "postgres-linux-${normArchName}-alpine_linux.txz"
+
+    appendix = "linux${archName != 'amd64' ? '-' + archName : ''}-alpine"
 }
 
-//task ubuntuJar(type: Jar, dependsOn: generateUbuntuPostgresBundle) {
-//    enabled = distName == 'ubuntu' || (!distName && archName != 'x86_64')
-//    from sourceSets.main.output
-//
-//    include "postgres-linux-${archName}-ubuntu.txz"
-//
-//    if (!distName) {
-//        rename "postgres-linux-${archName}-ubuntu.txz", "postgres-linux-${archName}.txz"
-//        appendix = "linux${archName != 'x86_64' ? '-' + archName : ''}"
-//    } else {
-//        appendix = "linux${archName != 'x86_64' ? '-' + archName : ''}-ubuntu"
-//    }
-//
-////    include "postgres-linux-${archName}${distName ? '-' + distName : ''}.txz"
-////    appendix = "linux${archName != 'x86_64' ? '-' + archName : ''}${distName ? '-' + distName : ''}"
-//}
+task ubuntuJar(type: Jar, dependsOn: generateUbuntuPostgresBundle) {
+    enabled = distName == 'ubuntu' || (!distName && (archName != 'amd64' || dockerImage))
+    from sourceSets.main.output
+
+    include "postgres-linux-${archName}-ubuntu.txz"
+
+    if (!distName) {
+        rename "postgres-linux-${archName}-ubuntu.txz", "postgres-linux-${normArchName}.txz"
+        appendix = "linux${archName != 'amd64' ? '-' + archName : ''}"
+    } else {
+        rename "postgres-linux-${archName}-ubuntu.txz", "postgres-linux-${normArchName}-ubuntu.txz"
+        appendix = "linux${archName != 'amd64' ? '-' + archName : ''}-ubuntu"
+    }
+}
 
 jar {
     enabled = false
@@ -116,7 +138,7 @@ configurations {
 }
 
 artifacts {
-    bundles windowsJar, darwinJar, linuxJar, alpineJar
+    bundles windowsJar, darwinJar, linuxJar, alpineJar, ubuntuJar
     archives configurations.bundles.artifacts
 }
 
@@ -232,6 +254,27 @@ publishing {
     }
 }
 
+task install(group: 'publishing') {
+    configurations.bundles.artifacts.all { archive ->
+        def publicationName = archive.archiveTask.name - 'Jar'
+        dependsOn "publish${publicationName.capitalize()}PublicationToMavenLocal"
+    }
+}
+
+task uploadArchives(group: 'publishing') {
+    configurations.bundles.artifacts.all { archive ->
+        def publicationName = archive.archiveTask.name - 'Jar'
+        dependsOn "publish${publicationName.capitalize()}PublicationToMavenRepository"
+    }
+}
+
+tasks.whenTaskAdded { task ->
+    if (task.name == 'generatePomFileForBomPublication') {
+        install.dependsOn 'publishBomPublicationToMavenLocal'
+        uploadArchives.dependsOn 'publishBomPublicationToMavenRepository'
+    }
+}
+
 def configurePom(pom, desc) {
     pom.withXml {
         def root = asNode()
@@ -273,23 +316,63 @@ def configurePom(pom, desc) {
     }
 }
 
-task install(group: 'publishing') {
-    configurations.bundles.artifacts.all { archive ->
-        def publicationName = archive.archiveTask.name - 'Jar'
-        dependsOn "publish${publicationName.capitalize()}PublicationToMavenLocal"
-    }
-}
+def normalizeArchName(String input) {
+    String arch = input.toLowerCase(Locale.US).replaceAll('[^a-z0-9]+', '')
 
-task uploadArchives(group: 'publishing') {
-    configurations.bundles.artifacts.all { archive ->
-        def publicationName = archive.archiveTask.name - 'Jar'
-        dependsOn "publish${publicationName.capitalize()}PublicationToMavenRepository"
+    if (arch ==~ /^(x8664|amd64|ia32e|em64t|x64)$/) {
+        return 'x86_64'
     }
-}
+    if (arch ==~ /^(x8632|x86|i[3-6]86|ia32|x32)$/) {
+        return 'x86_32'
+    }
+    if (arch ==~ /^(ia64w?|itanium64)$/) {
+        return 'itanium_64'
+    }
+    if (arch == 'ia64n') {
+        return 'itanium_32'
+    }
+    if (arch ==~ /^(sparcv9|sparc64)$/) {
+        return 'sparc_64'
+    }
+    if (arch ==~ /^(sparc|sparc32)$/) {
+        return 'sparc_32'
+    }
+    if (arch ==~ /^(aarch64|armv8|arm64).*$/) {
+        return 'arm_64'
+    }
+    if (arch ==~ /^(arm|arm32).*$/) {
+        return 'arm_32'
+    }
+    if (arch ==~ /^(mips|mips32)$/) {
+        return 'mips_32'
+    }
+    if (arch ==~ /^(mipsel|mips32el)$/) {
+        return 'mipsel_32'
+    }
+    if (arch == 'mips64') {
+        return 'mips_64'
+    }
+    if (arch == 'mips64el') {
+        return 'mipsel_64'
+    }
+    if (arch ==~ /^(ppc|ppc32)$/) {
+        return 'ppc_32'
+    }
+    if (arch ==~ /^(ppcle|ppc32le)$/) {
+        return 'ppcle_32'
+    }
+    if (arch == 'ppc64') {
+        return 'ppc_64'
+    }
+    if (arch == 'ppc64le') {
+        return 'ppcle_64'
+    }
+    if (arch == 's390') {
+        return 's390_32'
+    }
+    if (arch == 's390x') {
+        return 's390_64'
+    }
 
-tasks.whenTaskAdded { task ->
-    if (task.name == 'generatePomFileForBomPublication') {
-        install.dependsOn 'publishBomPublicationToMavenLocal'
-        uploadArchives.dependsOn 'publishBomPublicationToMavenRepository'
-    }
+    throw new GradleException("Unsupported architecture: $arch")
 }

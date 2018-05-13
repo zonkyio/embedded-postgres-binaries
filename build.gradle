@@ -69,7 +69,7 @@ task generateAlpinePostgresBundle(type: Exec, dependsOn: validateInputs) {
     inputs.file('repack-postgres-alpine.sh')
     outputs.dir("$buildDir/resources/main")
 
-    commandLine 'sh', './repack-postgres-alpine.sh', "$pgVersion", "$archName", "$dockerImage"
+    commandLine 'sh', './repack-postgres-alpine-lite.sh', "$pgVersion", "$archName", "$dockerImage"
 }
 
 task generateUbuntuPostgresBundle(type: Exec, dependsOn: validateInputs) {

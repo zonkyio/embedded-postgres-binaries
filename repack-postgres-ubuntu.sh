@@ -37,13 +37,10 @@ fi
 cd `dirname $0`
 
 TRG_DIR=$PWD/build/resources/main
-PKG_DIR=$PWD/build/tmp/postgres/package/ubuntu/pgsql
-
 mkdir -p $TRG_DIR
-rm -rf $PKG_DIR && mkdir -p $PKG_DIR
-echo "Resolved docker image '$IMG_NAME'"
 
-docker run -i --rm -v ${PKG_DIR}:/usr/local/pg-build -v ${TRG_DIR}:/usr/local/pg-dist $IMG_NAME /bin/bash -c "echo 'Starting compilation' \
+echo "Resolved docker image '$IMG_NAME'"
+docker run -i --rm -v ${TRG_DIR}:/usr/local/pg-dist $IMG_NAME /bin/bash -c "echo 'Starting compilation' \
     && apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
         wget \
@@ -51,37 +48,44 @@ docker run -i --rm -v ${PKG_DIR}:/usr/local/pg-build -v ${TRG_DIR}:/usr/local/pg
         xz-utils \
         gcc \
         make \
+        pkg-config \
         libc-dev \
-        uuid-dev \
+        libicu-dev \
+        libossp-uuid-dev \
         libxml2-dev \
-        libxslt-dev \
-        zlib1g-dev \
+        libxslt1-dev \
+        libz-dev \
+        libperl-dev \
+        python3-dev \
+        tcl8.6-dev \
+        patchelf \
 	&& wget -O postgresql.tar.bz2 'https://ftp.postgresql.org/pub/source/v$VERSION/postgresql-$VERSION.tar.bz2' \
 	&& mkdir -p /usr/src/postgresql \
 	&& tar -xf postgresql.tar.bz2 -C /usr/src/postgresql --strip-components 1 \
 	&& cd /usr/src/postgresql \
 	&& ./configure \
-	    CFLAGS='-O2' \
-		--prefix=/usr/local/pg-build \
-		--disable-rpath \
-		--enable-integer-datetimes \
-		--enable-thread-safety \
-		--with-uuid=e2fs \
-		--with-gnu-ld \
-		--with-includes=/usr/local/include \
-		--with-libraries=/usr/local/lib \
-		--with-libxml \
-		--with-libxslt \
-		--without-readline \
-	&& export LD_RUN_PATH='\$ORIGIN/../lib' \
-	&& make -j 8 \
+        CFLAGS='-O2 -DMAP_HUGETLB=0x40000' \
+        PYTHON=/usr/bin/python3 \
+        --prefix=/usr/local/pg-build \
+        --enable-debug \
+        --enable-integer-datetimes \
+        --enable-thread-safety \
+        --with-ossp-uuid \
+		--with-icu \
+        --with-libxml \
+        --with-libxslt \
+        --with-perl \
+        --with-python \
+        --with-tcl \
+        --with-tclconfig=/usr/lib/x86_64-linux-gnu/tcl8.6 \
+        --with-includes=/usr/include/tcl8.6 \
+        --without-readline \
+	&& make -j\$(nproc) \
 	&& make install \
-	&& cp /lib/*/libuuid.so.1.* /usr/local/pg-build/lib/libuuid.so.1 \
-	&& cp /lib/*/libz.so.1.* /usr/local/pg-build/lib/libz.so.1 \
-	&& cp /usr/lib/*/libxml2.so.2.* /usr/local/pg-build/lib/libxml2.so.2 \
-	&& cp /usr/lib/*/libxslt.so.1.* /usr/local/pg-build/lib/libxslt.so.1 \
-	&& cp /usr/lib/*/libicudata.so.* /usr/lib/*/libicuuc.so.* /usr/local/pg-build/lib \
 	&& cd /usr/local/pg-build \
+	&& cp /lib/*/libz.so.1 /lib/*/libuuid.so.1 /lib/*/liblzma.so.5 /usr/lib/*/libxml2.so.2 /usr/lib/*/libxslt.so.1 ./lib \
+	&& cp --no-dereference /usr/lib/*/libicudata.so* /usr/lib/*/libicuuc.so* /usr/lib/*/libicui18n.so* ./lib \
+	&& find ./bin -type f -print0 | xargs -0 -n1 patchelf --set-rpath '\$ORIGIN/../lib' \
 	&& tar -cJvf /usr/local/pg-dist/postgres-linux-$ARCH_NAME-ubuntu.txz --hard-dereference \
 	    share/postgresql \
         lib \

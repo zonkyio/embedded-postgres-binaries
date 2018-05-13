@@ -48,7 +48,6 @@ docker run -i --rm -v ${TRG_DIR}:/usr/local/pg-dist $IMG_NAME /bin/sh -c "echo '
 		gcc \
 		make \
 		libc-dev \
-		icu-dev \
 		util-linux-dev \
 		libxml2-dev \
 		libxslt-dev \
@@ -71,7 +70,6 @@ docker run -i --rm -v ${TRG_DIR}:/usr/local/pg-dist $IMG_NAME /bin/sh -c "echo '
 		--with-gnu-ld \
 		--with-includes=/usr/local/include \
 		--with-libraries=/usr/local/lib \
-		--with-icu \
 		--with-libxml \
 		--with-libxslt \
 		--with-perl \
@@ -82,7 +80,6 @@ docker run -i --rm -v ${TRG_DIR}:/usr/local/pg-dist $IMG_NAME /bin/sh -c "echo '
 	&& make install \
 	&& cd /usr/local/pg-build \
 	&& cp /lib/libuuid.so.1 /lib/libz.so.1 /usr/lib/libxml2.so.2 /usr/lib/libxslt.so.1 ./lib \
-	&& cp --no-dereference /usr/lib/libicudata.so* /usr/lib/libicuuc.so* /usr/lib/libicui18n.so* ./lib \
 	&& find ./bin -type f -print0 | xargs -0 -n1 patchelf --set-rpath '\$ORIGIN/../lib' \
 	&& tar -cJvf /usr/local/pg-dist/postgres-linux-$ARCH_NAME-alpine_linux.txz --hard-dereference \
 	    share/postgresql \

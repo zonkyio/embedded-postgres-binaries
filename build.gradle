@@ -1,3 +1,4 @@
+import org.gradle.internal.os.OperatingSystem
 
 apply plugin: 'java'
 apply plugin: 'maven-publish'
@@ -7,13 +8,13 @@ ext {
     ossrhUsername = project.findProperty('ossrhUsername')
     ossrhPassword = project.findProperty('ossrhPassword')
 
-    pgVersion = project.findProperty('pgVersion') ?: ("${project.version}" - '-SNAPSHOT')
-    pgBinVersion = project.findProperty('pgBinVersion') ?: "${pgVersion}-1"
-    archName = project.findProperty('archName') ?: 'amd64'
-    distName = project.findProperty('distName') ?: ''
-    dockerImage = project.findProperty('dockerImage') ?: ''
+    pgVersionParam = project.findProperty('pgVersion') ?: ("${project.version}" - '-SNAPSHOT')
+    pgBinVersionParam = project.findProperty('pgBinVersion') ?: "${pgVersionParam}-1"
+    archNameParam = project.findProperty('archName') ?: ''
+    distNameParam = project.findProperty('distName') ?: ''
+    dockerImageParam = project.findProperty('dockerImage') ?: ''
 
-    normArchName = normalizeArchName("$archName")
+    pgMajorVersionParam = (pgVersionParam =~ /(\d+)(\.\d+)+/).with { matches() ? it[0][1].toInteger() : null }
 }
 
 group 'io.zonky.test.postgres'
@@ -25,124 +26,221 @@ repositories {
     mavenCentral()
 }
 
+configurations {
+    bundles
+}
+
 task validateInputs {
     doFirst {
         println "version:       ${project.version}"
-        println "pgVersion:     $pgVersion"
-        println "pgBinVersion:  $pgBinVersion"
-        println "archName:      $archName"
-        println "normArchName:  $normArchName"
-
-        if (distName) {
-            println "distName:      $distName"
-        }
-        if (dockerImage) {
-            println "dockerImage:   $dockerImage"
-        }
+        println "pgVersion:     $pgVersionParam"
+        println "pgBinVersion:  $pgBinVersionParam"
 
         if (!project.version || project.version == 'unspecified') {
             throw new GradleException("The 'version' property must be set")
         }
-        if (distName && distName != 'alpine' && distName != 'ubuntu') {
-            throw new GradleException("Currently only the 'alpine' and 'ubuntu' distributions are supported")
+        if (distNameParam && distNameParam != 'alpine') {
+            throw new GradleException("Currently only the 'alpine' distribution is supported")
         }
-        if (!(archName ==~ /^[a-z0-9]+$/)) {
+        if (archNameParam && !(archNameParam ==~ /^[a-z0-9]+$/)) {
             throw new GradleException("The 'archName' property must contain only alphanumeric characters")
         }
     }
 }
 
-task generateStandardPostgresBundles(type: Exec, dependsOn: validateInputs) {
-    inputs.property('pgBinVersion', pgVersion)
+def repackedPlatforms = [
+        ['name':'darwin', 'arch':'amd64'],
+        ['name':'windows', 'arch':'i386'],
+        ['name':'windows', 'arch':'amd64'],
+        ['name':'linux', 'arch':'i386'],
+        ['name':'linux', 'arch':'amd64']
+]
 
-    inputs.file('repack-postgres.sh')
-    outputs.dir("$buildDir/resources/main")
+def alpinePlatforms = [
+        ['arch':'i386'],
+        ['arch':'amd64'],
+        ['arch':'arm32v6'],
+        ['arch':'arm64v8'],
+        ['arch':'ppc64le'],
+        ['arch':'s390x']
+]
 
-    commandLine 'sh', './repack-postgres.sh', "$pgBinVersion"
-}
+def alpineVariants = ['', 'lite'].findAll { it != 'lite' || pgMajorVersionParam >= 10 }
 
-task generateAlpinePostgresBundle(type: Exec, dependsOn: validateInputs) {
-    inputs.property('pgVersion', pgVersion)
-    inputs.property('archName', archName)
-    inputs.property('dockerImage', dockerImage)
+def debianPlatforms = [
+        ['arch':'arm32v6', 'image':'resin/rpi-raspbian:stretch'],
+        ['arch':'arm32v7'],
+        ['arch':'arm64v8'],
+        ['arch':'ppc64le'],
+        ['arch':'s390x']
+]
 
-    inputs.file('repack-postgres-alpine.sh')
-    outputs.dir("$buildDir/resources/main")
+if (!distNameParam && !archNameParam && !dockerImageParam) {
 
-    commandLine 'sh', './repack-postgres-alpine-lite.sh', "$pgVersion", "$archName", "$dockerImage"
-}
+    task generateRepackedPostgresBundles(group: "repacking", type: Exec, dependsOn: validateInputs) {
+        inputs.property('pgBinVersionParam', pgVersionParam)
 
-task generateUbuntuPostgresBundle(type: Exec, dependsOn: validateInputs) {
-    inputs.property('pgVersion', pgVersion)
-    inputs.property('archName', archName)
-    inputs.property('dockerImage', dockerImage)
+        inputs.file("$rootDir/repack-postgres.sh")
+        outputs.dir("$temporaryDir/bundles")
 
-    inputs.file('repack-postgres-ubuntu.sh')
-    outputs.dir("$buildDir/resources/main")
-
-    commandLine 'sh', './repack-postgres-ubuntu.sh', "$pgVersion", "$archName", "$dockerImage"
-}
-
-task windowsJar(type: Jar, dependsOn: generateStandardPostgresBundles) {
-    enabled = !distName && archName == 'amd64' && !dockerImage
-    from sourceSets.main.output
-    include 'postgres-windows-x86_64.txz'
-    appendix = 'windows'
-}
-
-task darwinJar(type: Jar, dependsOn: generateStandardPostgresBundles) {
-    enabled = !distName && archName == 'amd64' && !dockerImage
-    from sourceSets.main.output
-    include 'postgres-darwin-x86_64.txz'
-    appendix = 'darwin'
-}
-
-task linuxJar(type: Jar, dependsOn: generateStandardPostgresBundles) {
-    enabled = !distName && archName == 'amd64' && !dockerImage
-    from sourceSets.main.output
-    include 'postgres-linux-x86_64.txz'
-    appendix = 'linux'
-}
-
-task alpineJar(type: Jar, dependsOn: generateAlpinePostgresBundle) {
-    enabled = distName == 'alpine' || (!distName && archName == 'amd64' && !dockerImage)
-    from sourceSets.main.output
-
-    include "postgres-linux-${archName}-alpine_linux.txz"
-    rename "postgres-linux-${archName}-alpine_linux.txz", "postgres-linux-${normArchName}-alpine_linux.txz"
-
-    appendix = "linux${archName != 'amd64' ? '-' + archName : ''}-alpine"
-}
-
-task ubuntuJar(type: Jar, dependsOn: generateUbuntuPostgresBundle) {
-    enabled = distName == 'ubuntu' || (!distName && (archName != 'amd64' || dockerImage))
-    from sourceSets.main.output
-
-    include "postgres-linux-${archName}-ubuntu.txz"
-
-    if (!distName) {
-        rename "postgres-linux-${archName}-ubuntu.txz", "postgres-linux-${normArchName}.txz"
-        appendix = "linux${archName != 'amd64' ? '-' + archName : ''}"
-    } else {
-        rename "postgres-linux-${archName}-ubuntu.txz", "postgres-linux-${normArchName}-ubuntu.txz"
-        appendix = "linux${archName != 'amd64' ? '-' + archName : ''}-ubuntu"
+        workingDir temporaryDir
+        commandLine "$rootDir/repack-postgres.sh", "$pgBinVersionParam"
     }
+
+    repackedPlatforms.each { platform ->
+        task "${platform.arch}${platform.name.capitalize()}Jar"(group: "build (${platform.arch})", type: Jar) {
+            from generateRepackedPostgresBundles
+            include "postgres-${platform.name}-${normalizeArchName(platform.arch)}.txz"
+            appendix = "${platform.name}-${platform.arch}"
+        }
+
+        artifacts.add('bundles', tasks.getByName("${platform.arch}${platform.name.capitalize()}Jar"))
+    }
+
+    alpinePlatforms.each { platform ->
+        alpineVariants.each { variant ->
+
+            task "generate${platform.arch.capitalize()}Alpine${variant.capitalize()}PostgresBundle"(group: "build (${platform.arch})", type: Exec, dependsOn: validateInputs) {
+                def dockerImage = platform.image ?: defaultAlpineImage(platform.arch)
+
+                doFirst {
+                    println "dockerImage:   $dockerImage"
+                    println ''
+                }
+
+                inputs.property('pgVersion', pgVersionParam)
+                inputs.property('archName', platform.arch)
+                inputs.property('dockerImage', dockerImage)
+
+                inputs.file("$rootDir/repack-postgres-alpine.sh")
+                outputs.dir("$temporaryDir/bundle")
+
+                workingDir temporaryDir
+                commandLine "$rootDir/repack-postgres-alpine.sh", '-v', "$pgVersionParam", '-i', "$dockerImage", "${variant == 'lite' ? '-l' : ''}"
+            }
+
+            task "${platform.arch}Alpine${variant.capitalize()}Jar"(group: "build (${platform.arch})", type: Jar) {
+                from tasks.getByName("generate${platform.arch.capitalize()}Alpine${variant.capitalize()}PostgresBundle")
+                include "postgres-linux-alpine_linux.txz"
+                rename "postgres-linux-alpine_linux.txz", "postgres-linux-${normalizeArchName(platform.arch)}-alpine_linux.txz"
+                appendix = "linux-${platform.arch}-alpine${variant ? '-' + variant : ''}"
+            }
+
+            artifacts.add('bundles', tasks.getByName("${platform.arch}Alpine${variant.capitalize()}Jar"))
+        }
+    }
+
+    debianPlatforms.each { platform ->
+        task "generate${platform.arch.capitalize()}DebianPostgresBundle"(group: "build (${platform.arch})", type: Exec, dependsOn: validateInputs) {
+            def dockerImage = platform.image ?: defaultDebianImage(platform.arch)
+
+            doFirst {
+                println "dockerImage:   $dockerImage"
+                println ''
+            }
+
+            inputs.property('pgVersion', pgVersionParam)
+            inputs.property('archName', platform.arch)
+            inputs.property('dockerImage', dockerImage)
+
+            inputs.file("$rootDir/repack-postgres-debian.sh")
+            outputs.dir("$temporaryDir/bundle")
+
+            workingDir temporaryDir
+            commandLine "$rootDir/repack-postgres-debian.sh", '-v', "$pgVersionParam", '-i', "$dockerImage"
+        }
+
+        task "${platform.arch}DebianJar"(group: "build (${platform.arch})", type: Jar) {
+            from tasks.getByName("generate${platform.arch.capitalize()}DebianPostgresBundle")
+            include "postgres-linux-debian.txz"
+            rename "postgres-linux-debian.txz", "postgres-linux-${normalizeArchName(platform.arch)}.txz"
+            appendix = "linux-${platform.arch}"
+        }
+
+        artifacts.add('bundles', tasks.getByName("${platform.arch}DebianJar"))
+    }
+}
+
+if (distNameParam == 'alpine') {
+    def archName = archNameParam ?: 'amd64'
+
+    alpineVariants.each { variant ->
+        task "generateCustomAlpine${variant.capitalize()}PostgresBundle"(group: 'build (custom)', type: Exec, dependsOn: validateInputs) {
+            def dockerImage = dockerImageParam ?: defaultAlpineImage(archName)
+
+            doFirst {
+                println "archName:      $archName"
+                println "distName:      alpine"
+                println "dockerImage:   $dockerImage"
+                println ''
+            }
+
+            inputs.property('pgVersion', pgVersionParam)
+            inputs.property('archName', archName)
+            inputs.property('dockerImage', dockerImage)
+
+            inputs.file("$rootDir/repack-postgres-alpine.sh")
+            outputs.dir("$temporaryDir/bundle")
+
+            workingDir temporaryDir
+            commandLine "$rootDir/repack-postgres-alpine.sh", '-v', "$pgVersionParam", '-i', "$dockerImage", "${variant == 'lite' ? '-l' : ''}"
+        }
+
+        task "customAlpine${variant.capitalize()}Jar"(group: 'build (custom)', type: Jar) {
+            from tasks.getByName("generateCustomAlpine${variant.capitalize()}PostgresBundle")
+
+            include "postgres-linux-alpine_linux.txz"
+            rename "postgres-linux-alpine_linux.txz", "postgres-linux-${normalizeArchName(archName)}-alpine_linux.txz"
+            appendix = "linux-${archName}-alpine${variant ? '-' + variant : ''}"
+        }
+
+        artifacts.add('bundles', tasks.getByName("customAlpine${variant.capitalize()}Jar"))
+    }
+}
+
+if (!distNameParam && (archNameParam || dockerImageParam)) {
+    def archName = archNameParam ?: 'amd64'
+
+    task generateCustomDebianPostgresBundle(group: 'build (custom)', type: Exec, dependsOn: validateInputs) {
+        def dockerImage = dockerImageParam ?: defaultDebianImage(archName)
+
+        doFirst {
+            println "archName:      $archName"
+            println "distName:      debian-like"
+            println "dockerImage:   $dockerImage"
+            println ''
+        }
+
+        inputs.property('pgVersion', pgVersionParam)
+        inputs.property('archName', archName)
+        inputs.property('dockerImage', dockerImage)
+
+        inputs.file("$rootDir/repack-postgres-debian.sh")
+        outputs.dir("$temporaryDir/bundle")
+
+        workingDir temporaryDir
+        commandLine "$rootDir/repack-postgres-debian.sh", '-v', "$pgVersionParam", '-i', "$dockerImage"
+    }
+
+    task customDebianJar(group: 'build (custom)', type: Jar) {
+        from generateCustomDebianPostgresBundle
+        include "postgres-linux-debian.txz"
+        rename "postgres-linux-debian.txz", "postgres-linux-${normalizeArchName(archName)}.txz"
+        appendix = "linux-${archName}"
+    }
+
+    artifacts.add('bundles', tasks.getByName('customDebianJar'))
 }
 
 jar {
     enabled = false
 }
 
-configurations {
-    bundles
-}
-
 artifacts {
-    bundles windowsJar, darwinJar, linuxJar, alpineJar, ubuntuJar
     archives configurations.bundles.artifacts
 }
 
-[configurations.bundles, configurations.archives]*.with {
+configurations.archives.with {
     artifacts.removeAll artifacts.findAll { !it.archiveTask.enabled }
 }
 
@@ -200,13 +298,13 @@ publishing {
                 }
 
                 signing.required && project.tasks.withType(Sign) {
-                    signatures.findAll { it.getToSignArtifact()?.name == "${archive.name}" || it.file.path.startsWith("$buildDir/publications/$publicationName") }.each {
+                    signatures.findAll { it.getToSignArtifact()?.name == "${archive.name}" || it.file.path.startsWith("$buildDir/publications/$publicationName/") }.each {
                         artifact source: it.file, classifier: it.classifier ?: null, extension: it.type == 'xml.asc' ? 'pom.asc' : it.type
                     }
                 }
             }
         }
-        if (configurations.bundles.artifacts.size() > 1) {
+        if (!distNameParam && !archNameParam && !dockerImageParam) {
             bom(MavenPublication) {
                 artifactId 'embedded-postgres-binaries-bom'
                 configurePom(pom, 'Bill of Materials')
@@ -219,13 +317,23 @@ publishing {
 
                         dependencyManagement {
                             dependencies {
-                                configurations.bundles.artifacts.all { archive ->
-                                    dependency {
-                                        groupId "${project.group}"
-                                        artifactId "${archive.name}"
-                                        version "${project.version}"
-                                    }
-                                }
+                                configurations.bundles.artifacts.findAll()
+                                        .sort { archive ->
+                                            archive.name.replaceFirst(/^embedded-postgres-binaries-([^-]+-([^-]+).*)$/, { all, suffix, arch ->
+                                                ['amd64', 'i386'].indexOf(arch).with { it != -1 ? it : 9 } + suffix
+                                            })
+                                        }
+                                        .each { archive ->
+                                            dependency {
+                                                groupId "${project.group}"
+                                                artifactId "${archive.name}"
+                                                version "${project.version}"
+
+                                                if (!archive.name.contains('amd64') || archive.name.contains('lite')) {
+                                                    optional 'true'
+                                                }
+                                            }
+                                        }
                             }
                         }
                     }
@@ -316,7 +424,37 @@ def configurePom(pom, desc) {
     }
 }
 
-def normalizeArchName(String input) {
+static def defaultDebianImage(archName) {
+    def system = OperatingSystem.current()
+
+    if (archName == 'amd64' && system.getArch() == 'amd64') {
+        return 'ubuntu:16.04'
+    } else if (system.isMacOsX()) {
+        return "$archName/ubuntu:16.04"
+    } else if (system.isLinux()) {
+        def archMappings = ['arm32v6':'armel', 'arm32v7':'armhf', 'arm64v8':'arm64', 'ppc64le':'ppc64el']
+        return "multiarch/ubuntu-core:${archMappings[archName] ?: archName}-xenial"
+    } else {
+        throw new GradleException("Cross-building is not supported on the current platform: $system!")
+    }
+}
+
+static def defaultAlpineImage(archName) {
+    def system = OperatingSystem.current()
+
+    if (archName == 'amd64' && system.getArch() == 'amd64') {
+        return 'alpine:3.7'
+    } else if (system.isMacOsX()) {
+        return "$archName/alpine:3.7"
+    } else if (system.isLinux()) {
+        def archMappings = ['arm32v5':'armel', 'arm32v6':'armhf', 'arm64v8':'arm64']
+        return "multiarch/alpine:${archMappings[archName] ?: archName}-v3.7"
+    } else {
+        throw new GradleException("Cross-building is not supported on the current platform: $system!")
+    }
+}
+
+static def normalizeArchName(String input) {
     String arch = input.toLowerCase(Locale.US).replaceAll('[^a-z0-9]+', '')
 
     if (arch ==~ /^(x8664|amd64|ia32e|em64t|x64)$/) {

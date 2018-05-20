@@ -1,1 +1,11 @@
 rootProject.name = 'embedded-postgres-binaries'
+
+include 'repacked-platforms'
+
+include 'debian-platforms'
+include 'alpine-platforms'
+include 'alpine-lite-platforms'
+
+include 'custom-debian-platform'
+include 'custom-alpine-platform'
+include 'custom-alpine-lite-platform'

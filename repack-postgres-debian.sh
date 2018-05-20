@@ -1,11 +1,13 @@
 #!/bin/bash
 
+DOCKER_OPTS=
 LITE_OPT=false
 
-while getopts "v:i:l" opt; do
+while getopts "v:i:o:l" opt; do
     case $opt in
     v) VERSION=$OPTARG ;;
     i) IMG_NAME=$OPTARG ;;
+    o) DOCKER_OPTS=$OPTARG ;;
     l) LITE_OPT=true ;;
     \?) exit 1 ;;
     esac
@@ -26,7 +28,7 @@ ICU_ENABLED=$([[ ! "$VERSION" == 9.* ]] && [[ ! "$LITE_OPT" == true ]] && echo t
 TRG_DIR=$PWD/bundle
 mkdir -p $TRG_DIR
 
-docker run -i --rm -v ${TRG_DIR}:/usr/local/pg-dist $IMG_NAME /bin/bash -c "echo 'Starting building postgres binaries' \
+docker run -i --rm -v ${TRG_DIR}:/usr/local/pg-dist $DOCKER_OPTS $IMG_NAME /bin/bash -c "echo 'Starting building postgres binaries' \
     && apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
         wget \

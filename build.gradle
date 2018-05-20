@@ -9,6 +9,7 @@ ext {
     archNameParam = project.findProperty('archName') ?: ''
     distNameParam = project.findProperty('distName') ?: ''
     dockerImageParam = project.findProperty('dockerImage') ?: ''
+    qemuPathParam = project.findProperty('qemuPath') ?: ''
 
     pgMajorVersionParam = (pgVersionParam =~ /(\d+)(\.\d+)+/).with { matches() ? it[0][1].toInteger() : null }
 }
@@ -62,8 +63,7 @@ def debianPlatforms = [
         ['arch':'arm32v6', 'image':'resin/rpi-raspbian:stretch'],
         ['arch':'arm32v7'],
         ['arch':'arm64v8'],
-        ['arch':'ppc64le'],
-        ['arch':'s390x']
+        ['arch':'ppc64le']
 ]
 
 def alpinePlatforms = [
@@ -71,8 +71,7 @@ def alpinePlatforms = [
         ['arch':'amd64'],
         ['arch':'arm32v6'],
         ['arch':'arm64v8'],
-        ['arch':'ppc64le'],
-        ['arch':'s390x']
+        ['arch':'ppc64le']
 ]
 
 def alpineVariants = [
@@ -108,10 +107,12 @@ project(':debian-platforms') {
     if (!distNameParam && !archNameParam && !dockerImageParam) {
         debianPlatforms.each { platform ->
             task "generate${platform.arch.capitalize()}DebianPostgresBundle"(group: "build (${platform.arch})", type: Exec, dependsOn: validateInputs) {
-                def dockerImage = platform.image ?: defaultDebianImage(platform.arch)
+                def qemuBindings = resolveQemuBindings(qemuPathParam)
+                def dockerImage = platform.image ?: defaultDebianImage(platform.arch, qemuBindings)
 
                 doFirst {
                     println "dockerImage:   $dockerImage"
+                    println "qemuBindings:  $qemuBindings"
                     println ''
                 }
 
@@ -123,7 +124,7 @@ project(':debian-platforms') {
                 outputs.dir("$temporaryDir/bundle")
 
                 workingDir temporaryDir
-                commandLine "$rootDir/repack-postgres-debian.sh", '-v', "$pgVersionParam", '-i', "$dockerImage"
+                commandLine "$rootDir/repack-postgres-debian.sh", '-v', "$pgVersionParam", '-i', "$dockerImage", '-o', "$qemuBindings"
             }
 
             task "${platform.arch}DebianJar"(group: "build (${platform.arch})", type: Jar) {
@@ -144,10 +145,12 @@ alpineVariants.each { variant ->
             alpinePlatforms.each { platform ->
 
                 task "generate${platform.arch.capitalize()}Alpine${variant.name.capitalize()}PostgresBundle"(group: "build (${platform.arch})", type: Exec, dependsOn: validateInputs) {
-                    def dockerImage = platform.image ?: defaultAlpineImage(platform.arch)
+                    def qemuBindings = resolveQemuBindings(qemuPathParam)
+                    def dockerImage = platform.image ?: defaultAlpineImage(platform.arch, qemuBindings)
 
                     doFirst {
                         println "dockerImage:   $dockerImage"
+                        println "qemuBindings:  $qemuBindings"
                         println ''
                     }
 
@@ -159,7 +162,7 @@ alpineVariants.each { variant ->
                     outputs.dir("$temporaryDir/bundle")
 
                     workingDir temporaryDir
-                    commandLine "$rootDir/repack-postgres-alpine.sh", '-v', "$pgVersionParam", '-i', "$dockerImage", "${variant.opt}"
+                    commandLine "$rootDir/repack-postgres-alpine.sh", '-v', "$pgVersionParam", '-i', "$dockerImage", '-o', "$qemuBindings", "${variant.opt}"
                 }
 
                 task "${platform.arch}Alpine${variant.name.capitalize()}Jar"(group: "build (${platform.arch})", type: Jar) {
@@ -180,12 +183,14 @@ project(':custom-debian-platform') {
         def archName = archNameParam ?: 'amd64'
 
         task generateCustomDebianPostgresBundle(group: 'build (custom)', type: Exec, dependsOn: validateInputs) {
-            def dockerImage = dockerImageParam ?: defaultDebianImage(archName)
+            def qemuBindings = resolveQemuBindings(qemuPathParam)
+            def dockerImage = dockerImageParam ?: defaultDebianImage(archName, qemuBindings)
 
             doFirst {
                 println "archName:      $archName"
                 println "distName:      debian-like"
                 println "dockerImage:   $dockerImage"
+                println "qemuBindings:  $qemuBindings"
                 println ''
             }
 
@@ -197,7 +202,7 @@ project(':custom-debian-platform') {
             outputs.dir("$temporaryDir/bundle")
 
             workingDir temporaryDir
-            commandLine "$rootDir/repack-postgres-debian.sh", '-v', "$pgVersionParam", '-i', "$dockerImage"
+            commandLine "$rootDir/repack-postgres-debian.sh", '-v', "$pgVersionParam", '-i', "$dockerImage", '-o', "$qemuBindings"
         }
 
         task customDebianJar(group: 'build (custom)', type: Jar) {
@@ -217,12 +222,14 @@ alpineVariants.each { variant ->
             def archName = archNameParam ?: 'amd64'
 
             task "generateCustomAlpine${variant.name.capitalize()}PostgresBundle"(group: 'build (custom)', type: Exec, dependsOn: validateInputs) {
-                def dockerImage = dockerImageParam ?: defaultAlpineImage(archName)
+                def qemuBindings = resolveQemuBindings(qemuPathParam)
+                def dockerImage = dockerImageParam ?: defaultAlpineImage(archName, qemuBindings)
 
                 doFirst {
                     println "archName:      $archName"
                     println "distName:      alpine"
                     println "dockerImage:   $dockerImage"
+                    println "qemuBindings:  $qemuBindings"
                     println ''
                 }
 
@@ -234,7 +241,7 @@ alpineVariants.each { variant ->
                 outputs.dir("$temporaryDir/bundle")
 
                 workingDir temporaryDir
-                commandLine "$rootDir/repack-postgres-alpine.sh", '-v', "$pgVersionParam", '-i', "$dockerImage", "${variant.opt}"
+                commandLine "$rootDir/repack-postgres-alpine.sh", '-v', "$pgVersionParam", '-i', "$dockerImage", '-o', "$qemuBindings", "${variant.opt}"
             }
 
             task "customAlpine${variant.name.capitalize()}Jar"(group: 'build (custom)', type: Jar) {
@@ -245,7 +252,7 @@ alpineVariants.each { variant ->
                 appendix = "linux-${archName}-alpine${variant.name ? '-' + variant.name : ''}"
             }
 
-            artifacts.add('bundles', tasks.getByName("customAlpine${variant.capitalize()}Jar"))
+            artifacts.add('bundles', tasks.getByName("customAlpine${variant.name.capitalize()}Jar"))
         }
     }
 }
@@ -456,33 +463,39 @@ def configurePom(pom, desc) {
     }
 }
 
-static def defaultDebianImage(archName) {
+def resolveQemuBindings(qemuPath) {
+    return fileTree(dir:"${qemuPath ? qemuPath : '/usr/bin'}", includes:['qemu-*-static']).getFiles()
+            .collect { "-v ${it.path}:/usr/bin/${it.name}" }
+            .join(' ')
+}
+
+static def defaultDebianImage(archName, useEmulation) {
     def system = OperatingSystem.current()
 
-    if (archName == 'amd64' && system.getArch() == 'amd64') {
+    if (archName == system.getArch()) {
         return 'ubuntu:14.04'
-    } else if (system.isMacOsX()) {
+    } else if (system.isMacOsX() || useEmulation) {
         return "$archName/ubuntu:14.04"
     } else if (system.isLinux()) {
         def archMappings = ['arm32v6':'armel', 'arm32v7':'armhf', 'arm64v8':'arm64', 'ppc64le':'ppc64el']
         return "multiarch/ubuntu-core:${archMappings[archName] ?: archName}-trusty"
     } else {
-        throw new GradleException("Cross-building is not supported on the current platform: $system!")
+        throw new GradleException("Cross-building is not supported on the current platform: $system")
     }
 }
 
-static def defaultAlpineImage(archName) {
+static def defaultAlpineImage(archName, useEmulation) {
     def system = OperatingSystem.current()
 
-    if (archName == 'amd64' && system.getArch() == 'amd64') {
+    if (archName == system.getArch()) {
         return 'alpine:3.6'
-    } else if (system.isMacOsX()) {
+    } else if (system.isMacOsX() || useEmulation) {
         return "$archName/alpine:3.6"
     } else if (system.isLinux()) {
         def archMappings = ['arm32v5':'armel', 'arm32v6':'armhf', 'arm64v8':'arm64']
         return "multiarch/alpine:${archMappings[archName] ?: archName}-v3.6"
     } else {
-        throw new GradleException("Cross-building is not supported on the current platform: $system!")
+        throw new GradleException("Cross-building is not supported on the current platform: $system")
     }
 }
 

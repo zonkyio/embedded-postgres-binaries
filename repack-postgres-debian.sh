@@ -26,13 +26,14 @@ ICU_ENABLED=$([[ ! "$VERSION" == 9.* ]] && [[ ! "$LITE_OPT" == true ]] && echo t
 TRG_DIR=$PWD/bundle
 mkdir -p $TRG_DIR
 
-docker run -i --rm -v ${TRG_DIR}:/usr/local/pg-dist $IMG_NAME /bin/bash -c "echo 'Starting compilation' \
+docker run -i --rm -v ${TRG_DIR}:/usr/local/pg-dist $IMG_NAME /bin/bash -c "echo 'Starting building postgres binaries' \
     && apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
         wget \
-        lbzip2 \
+        bzip2 \
         xz-utils \
         gcc \
+        g++ \
         make \
         pkg-config \
         libc-dev \
@@ -43,13 +44,25 @@ docker run -i --rm -v ${TRG_DIR}:/usr/local/pg-dist $IMG_NAME /bin/bash -c "echo
         libz-dev \
         libperl-dev \
         python3-dev \
-        tcl8.6-dev \
-        patchelf \
-	&& wget -O postgresql.tar.bz2 'https://ftp.postgresql.org/pub/source/v$VERSION/postgresql-$VERSION.tar.bz2' \
-	&& mkdir -p /usr/src/postgresql \
-	&& tar -xf postgresql.tar.bz2 -C /usr/src/postgresql --strip-components 1 \
-	&& cd /usr/src/postgresql \
-	&& ./configure \
+        tcl-dev \
+        \
+    && wget -O patchelf.tar.gz 'https://nixos.org/releases/patchelf/patchelf-0.9/patchelf-0.9.tar.gz' \
+    && mkdir -p /usr/src/patchelf \
+    && tar -xf patchelf.tar.gz -C /usr/src/patchelf --strip-components 1 \
+    && cd /usr/src/patchelf \
+    && wget -O config.guess 'https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=HEAD' \
+    && wget -O config.sub 'https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;hb=HEAD' \
+    && ./configure --prefix=/usr/local \
+    && make -j\$(nproc) \
+    && make install \
+    \
+    && wget -O postgresql.tar.bz2 'https://ftp.postgresql.org/pub/source/v$VERSION/postgresql-$VERSION.tar.bz2' \
+    && mkdir -p /usr/src/postgresql \
+    && tar -xf postgresql.tar.bz2 -C /usr/src/postgresql --strip-components 1 \
+    && cd /usr/src/postgresql \
+    && wget -O config/config.guess 'https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=HEAD' \
+    && wget -O config/config.sub 'https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;hb=HEAD' \
+    && ./configure \
         CFLAGS='-O2 -DMAP_HUGETLB=0x40000' \
         PYTHON=/usr/bin/python3 \
         --prefix=/usr/local/pg-build \
@@ -57,23 +70,24 @@ docker run -i --rm -v ${TRG_DIR}:/usr/local/pg-dist $IMG_NAME /bin/bash -c "echo
         --enable-integer-datetimes \
         --enable-thread-safety \
         --with-ossp-uuid \
-		\$([ "$ICU_ENABLED" = true ] && echo '--with-icu') \
+        \$([ "$ICU_ENABLED" = true ] && echo '--with-icu') \
         --with-libxml \
         --with-libxslt \
         --with-perl \
         --with-python \
         --with-tcl \
-        --with-tclconfig=/usr/lib/tcl8.6 \
-        --with-includes=/usr/include/tcl8.6 \
         --without-readline \
-	&& make -j\$(nproc) \
-	&& make install \
-	&& cd /usr/local/pg-build \
-	&& cp /lib/*/libz.so.1 /lib/*/libuuid.so.1 /lib/*/liblzma.so.5 /usr/lib/*/libxml2.so.2 /usr/lib/*/libxslt.so.1 ./lib \
-	&& if [ "$ICU_ENABLED" = true ]; then cp --no-dereference /usr/lib/*/libicudata.so* /usr/lib/*/libicuuc.so* /usr/lib/*/libicui18n.so* ./lib; fi \
-	&& find ./bin -type f \( -name 'initdb' -o -name 'pg_ctl' -o -name 'postgres' \) -print0 | xargs -0 -n1 patchelf --set-rpath '\$ORIGIN/../lib' \
-	&& tar -cJvf /usr/local/pg-dist/postgres-linux-debian.txz --hard-dereference \
-	    share/postgresql \
+    && make -j\$(nproc) \
+    && make install \
+    \
+    && cd /usr/local/pg-build \
+    && cp /lib/*/libz.so.1 /lib/*/libuuid.so.1 /lib/*/liblzma.so.5 /usr/lib/*/libxml2.so.2 /usr/lib/*/libxslt.so.1 ./lib \
+    && if [ "$ICU_ENABLED" = true ]; then cp --no-dereference /usr/lib/*/libicudata.so* /usr/lib/*/libicuuc.so* /usr/lib/*/libicui18n.so* ./lib; fi \
+    && find ./bin -type f \( -name 'initdb' -o -name 'pg_ctl' -o -name 'postgres' \) -print0 | xargs -0 -n1 patchelf --set-rpath '\$ORIGIN/../lib' \
+    && find ./lib -maxdepth 1 -type f -name '*.so*' -print0 | xargs -0 -n1 patchelf --set-rpath '\$ORIGIN' \
+    && find ./lib/postgresql -maxdepth 1 -type f -name '*.so*' -print0 | xargs -0 -n1 patchelf --set-rpath '\$ORIGIN/..' \
+    && tar -cJvf /usr/local/pg-dist/postgres-linux-debian.txz --hard-dereference \
+        share/postgresql \
         lib \
         bin/initdb \
         bin/pg_ctl \

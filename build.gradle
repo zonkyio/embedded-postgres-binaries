@@ -460,12 +460,12 @@ static def defaultDebianImage(archName) {
     def system = OperatingSystem.current()
 
     if (archName == 'amd64' && system.getArch() == 'amd64') {
-        return 'ubuntu:16.04'
+        return 'ubuntu:14.04'
     } else if (system.isMacOsX()) {
-        return "$archName/ubuntu:16.04"
+        return "$archName/ubuntu:14.04"
     } else if (system.isLinux()) {
         def archMappings = ['arm32v6':'armel', 'arm32v7':'armhf', 'arm64v8':'arm64', 'ppc64le':'ppc64el']
-        return "multiarch/ubuntu-core:${archMappings[archName] ?: archName}-xenial"
+        return "multiarch/ubuntu-core:${archMappings[archName] ?: archName}-trusty"
     } else {
         throw new GradleException("Cross-building is not supported on the current platform: $system!")
     }
@@ -475,12 +475,12 @@ static def defaultAlpineImage(archName) {
     def system = OperatingSystem.current()
 
     if (archName == 'amd64' && system.getArch() == 'amd64') {
-        return 'alpine:3.7'
+        return 'alpine:3.6'
     } else if (system.isMacOsX()) {
-        return "$archName/alpine:3.7"
+        return "$archName/alpine:3.6"
     } else if (system.isLinux()) {
         def archMappings = ['arm32v5':'armel', 'arm32v6':'armhf', 'arm64v8':'arm64']
-        return "multiarch/alpine:${archMappings[archName] ?: archName}-v3.7"
+        return "multiarch/alpine:${archMappings[archName] ?: archName}-v3.6"
     } else {
         throw new GradleException("Cross-building is not supported on the current platform: $system!")
     }

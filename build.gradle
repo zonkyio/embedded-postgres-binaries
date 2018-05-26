@@ -1,5 +1,9 @@
 import org.gradle.internal.os.OperatingSystem
 
+plugins {
+    id "de.undercouch.download" version "3.4.3"
+}
+
 ext {
     ossrhUsername = project.findProperty('ossrhUsername')
     ossrhPassword = project.findProperty('ossrhPassword')
@@ -49,6 +53,21 @@ task validateInputs {
             throw new GradleException("The 'archName' property must contain only alphanumeric characters")
         }
     }
+}
+
+task downloadQemuExecutables(type: Download, dependsOn: validateInputs) {
+    onlyIf { !qemuPathParam && OperatingSystem.current().isLinux() && OperatingSystem.current().getArch() == 'amd64' }
+    src(['arm', 'aarch64', 'ppc64le'].collect { arch ->
+        "https://github.com/multiarch/qemu-user-static/releases/download/v2.12.0/qemu-$arch-static"
+    })
+    overwrite false
+    dest file("$temporaryDir/downloads")
+}
+
+task prepareQemuExecutables(type: Copy, dependsOn: downloadQemuExecutables) {
+    from downloadQemuExecutables.dest
+    into file("$temporaryDir/executables")
+    fileMode = 0755
 }
 
 def repackedPlatforms = [
@@ -106,13 +125,13 @@ project(':repacked-platforms') {
 project(':debian-platforms') {
     if (!distNameParam && !archNameParam && !dockerImageParam) {
         debianPlatforms.each { platform ->
-            task "generate${platform.arch.capitalize()}DebianPostgresBundle"(group: "build (${platform.arch})", type: Exec, dependsOn: validateInputs) {
-                def qemuBindings = resolveQemuBindings(qemuPathParam)
-                def dockerImage = platform.image ?: defaultDebianImage(platform.arch, qemuBindings)
+            task "generate${platform.arch.capitalize()}DebianPostgresBundle"(group: "build (${platform.arch})", type: LazyExec, dependsOn: [validateInputs, prepareQemuExecutables]) {
+                def qemuBindings = { resolveQemuBindings() }
+                def dockerImage = { platform.image ?: defaultDebianImage(platform.arch, qemuBindings) }
 
                 doFirst {
-                    println "dockerImage:   $dockerImage"
-                    println "qemuBindings:  $qemuBindings"
+                    println "dockerImage:   ${dockerImage()}"
+                    println "qemuBindings:  ${qemuBindings()}"
                     println ''
                 }
 
@@ -124,7 +143,7 @@ project(':debian-platforms') {
                 outputs.dir("$temporaryDir/bundle")
 
                 workingDir temporaryDir
-                commandLine "$rootDir/repack-postgres-debian.sh", '-v', "$pgVersionParam", '-i', "$dockerImage", '-o', "$qemuBindings"
+                commandLine "$rootDir/repack-postgres-debian.sh", '-v', "$pgVersionParam", '-i', dockerImage, '-o', qemuBindings
             }
 
             task "${platform.arch}DebianJar"(group: "build (${platform.arch})", type: Jar) {
@@ -144,13 +163,13 @@ alpineVariants.each { variant ->
         if (!distNameParam && !archNameParam && !dockerImageParam && variant.enabled) {
             alpinePlatforms.each { platform ->
 
-                task "generate${platform.arch.capitalize()}Alpine${variant.name.capitalize()}PostgresBundle"(group: "build (${platform.arch})", type: Exec, dependsOn: validateInputs) {
-                    def qemuBindings = resolveQemuBindings(qemuPathParam)
-                    def dockerImage = platform.image ?: defaultAlpineImage(platform.arch, qemuBindings)
+                task "generate${platform.arch.capitalize()}Alpine${variant.name.capitalize()}PostgresBundle"(group: "build (${platform.arch})", type: LazyExec, dependsOn: [validateInputs, prepareQemuExecutables]) {
+                    def qemuBindings = { resolveQemuBindings() }
+                    def dockerImage = { platform.image ?: defaultAlpineImage(platform.arch, qemuBindings) }
 
                     doFirst {
-                        println "dockerImage:   $dockerImage"
-                        println "qemuBindings:  $qemuBindings"
+                        println "dockerImage:   ${dockerImage()}"
+                        println "qemuBindings:  ${qemuBindings()}"
                         println ''
                     }
 
@@ -162,7 +181,7 @@ alpineVariants.each { variant ->
                     outputs.dir("$temporaryDir/bundle")
 
                     workingDir temporaryDir
-                    commandLine "$rootDir/repack-postgres-alpine.sh", '-v', "$pgVersionParam", '-i', "$dockerImage", '-o', "$qemuBindings", "${variant.opt}"
+                    commandLine "$rootDir/repack-postgres-alpine.sh", '-v', "$pgVersionParam", '-i', dockerImage, '-o', qemuBindings, "${variant.opt}"
                 }
 
                 task "${platform.arch}Alpine${variant.name.capitalize()}Jar"(group: "build (${platform.arch})", type: Jar) {
@@ -182,15 +201,15 @@ project(':custom-debian-platform') {
     if (!distNameParam && (archNameParam || dockerImageParam)) {
         def archName = archNameParam ?: 'amd64'
 
-        task generateCustomDebianPostgresBundle(group: 'build (custom)', type: Exec, dependsOn: validateInputs) {
-            def qemuBindings = resolveQemuBindings(qemuPathParam)
-            def dockerImage = dockerImageParam ?: defaultDebianImage(archName, qemuBindings)
+        task generateCustomDebianPostgresBundle(group: 'build (custom)', type: LazyExec, dependsOn: [validateInputs, prepareQemuExecutables]) {
+            def qemuBindings = { resolveQemuBindings() }
+            def dockerImage = { dockerImageParam ?: defaultDebianImage(archName, qemuBindings()) }
 
             doFirst {
                 println "archName:      $archName"
                 println "distName:      debian-like"
-                println "dockerImage:   $dockerImage"
-                println "qemuBindings:  $qemuBindings"
+                println "dockerImage:   ${dockerImage()}"
+                println "qemuBindings:  ${qemuBindings()}"
                 println ''
             }
 
@@ -202,7 +221,7 @@ project(':custom-debian-platform') {
             outputs.dir("$temporaryDir/bundle")
 
             workingDir temporaryDir
-            commandLine "$rootDir/repack-postgres-debian.sh", '-v', "$pgVersionParam", '-i', "$dockerImage", '-o', "$qemuBindings"
+            commandLine "$rootDir/repack-postgres-debian.sh", '-v', "$pgVersionParam", '-i', dockerImage, '-o', qemuBindings
         }
 
         task customDebianJar(group: 'build (custom)', type: Jar) {
@@ -221,15 +240,15 @@ alpineVariants.each { variant ->
         if (distNameParam == 'alpine' && variant.enabled) {
             def archName = archNameParam ?: 'amd64'
 
-            task "generateCustomAlpine${variant.name.capitalize()}PostgresBundle"(group: 'build (custom)', type: Exec, dependsOn: validateInputs) {
-                def qemuBindings = resolveQemuBindings(qemuPathParam)
-                def dockerImage = dockerImageParam ?: defaultAlpineImage(archName, qemuBindings)
+            task "generateCustomAlpine${variant.name.capitalize()}PostgresBundle"(group: 'build (custom)', type: LazyExec, dependsOn: [validateInputs, prepareQemuExecutables]) {
+                def qemuBindings = { resolveQemuBindings() }
+                def dockerImage = { dockerImageParam ?: defaultAlpineImage(archName, qemuBindings) }
 
                 doFirst {
                     println "archName:      $archName"
                     println "distName:      alpine"
-                    println "dockerImage:   $dockerImage"
-                    println "qemuBindings:  $qemuBindings"
+                    println "dockerImage:   ${dockerImage()}"
+                    println "qemuBindings:  ${qemuBindings()}"
                     println ''
                 }
 
@@ -241,7 +260,7 @@ alpineVariants.each { variant ->
                 outputs.dir("$temporaryDir/bundle")
 
                 workingDir temporaryDir
-                commandLine "$rootDir/repack-postgres-alpine.sh", '-v', "$pgVersionParam", '-i', "$dockerImage", '-o', "$qemuBindings", "${variant.opt}"
+                commandLine "$rootDir/repack-postgres-alpine.sh", '-v', "$pgVersionParam", '-i', dockerImage, '-o', qemuBindings, "${variant.opt}"
             }
 
             task "customAlpine${variant.name.capitalize()}Jar"(group: 'build (custom)', type: Jar) {
@@ -463,10 +482,12 @@ def configurePom(pom, desc) {
     }
 }
 
-def resolveQemuBindings(qemuPath) {
-    return fileTree(dir:"${qemuPath ? qemuPath : '/usr/bin'}", includes:['qemu-*-static']).getFiles()
-            .collect { "-v ${it.path}:/usr/bin/${it.name}" }
-            .join(' ')
+def resolveQemuBindings() {
+    def bindings = fileTree(dir:"${qemuPathParam ? qemuPathParam : '/usr/bin'}", includes:['qemu-*-static']).getFiles()
+    if (!bindings && !qemuPathParam) {
+        bindings = fileTree(dir:prepareQemuExecutables.destinationDir, includes:['qemu-*-static']).getFiles()
+    }
+    return bindings.collect { "-v ${it.path}:/usr/bin/${it.name}" }.join(' ')
 }
 
 static def defaultDebianImage(archName, useEmulation) {
@@ -558,4 +579,28 @@ static def normalizeArchName(String input) {
     }
 
     throw new GradleException("Unsupported architecture: $arch")
+}
+
+class LazyExec extends AbstractExecTask<LazyExec> {
+
+    LazyExec() {
+        super(LazyExec.class)
+    }
+
+    @Override
+    LazyExec commandLine(Object... arguments) {
+        return super.commandLine(arguments.collect { argument ->
+            if (argument instanceof Closure) {
+                Closure closure = (Closure) argument;
+                return new Object() {
+                    @Override
+                    String toString() {
+                        return closure()
+                    }
+                }
+            } else {
+                return argument
+            }
+        }) as LazyExec
+    }
 }

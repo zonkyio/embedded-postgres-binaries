@@ -1,12 +1,16 @@
 import org.gradle.internal.os.OperatingSystem
 
 plugins {
+    id "com.jfrog.bintray" version "1.7.3"
     id "de.undercouch.download" version "3.4.3"
 }
 
 ext {
-    ossrhUsername = project.findProperty('ossrhUsername')
-    ossrhPassword = project.findProperty('ossrhPassword')
+    bintrayUser = project.findProperty('bintray.user')
+    bintrayApiKey = project.findProperty('bintray.apiKey')
+    signingPassword = project.findProperty('signing.password')
+    ossrhUsername = project.findProperty('ossrh.username')
+    ossrhPassword = project.findProperty('ossrh.password')
 
     pgVersionParam = project.findProperty('pgVersion') ?: ("${project.version}" - '-SNAPSHOT')
     pgBinVersionParam = project.findProperty('pgBinVersion') ?: "${pgVersionParam}-1"
@@ -21,7 +25,7 @@ ext {
 allprojects {
     apply plugin: 'java'
     apply plugin: 'maven-publish'
-    apply plugin: 'signing'
+    apply plugin: 'com.jfrog.bintray'
 
     group 'io.zonky.test.postgres'
     archivesBaseName = 'embedded-postgres-binaries'
@@ -276,69 +280,92 @@ alpineVariants.each { variant ->
     }
 }
 
-allprojects {
-    jar {
-        enabled = false
+subprojects {
+    task sourcesJar(type: Jar, dependsOn: classes) {
+        from sourceSets.main.allSource
+        classifier = 'sources'
     }
 
-    artifacts {
-        archives configurations.bundles.artifacts
-    }
-
-    configurations.archives.with {
-        artifacts.removeAll artifacts.findAll { !it.archiveTask.enabled }
-    }
-
-    signing {
-        required { project.hasProperty('signing.keyId') }
-        sign configurations.archives
-    }
-
-    task signBomPom(type: Sign, group: 'signing') {
-        sign project.file("$buildDir/publications/bom/pom-default.xml")
-        outputs.upToDateWhen { false }
-    }
-
-    configurations.bundles.artifacts.all { archive ->
-        def publicationName = archive.archiveTask.name - 'Jar'
-        task "sign${publicationName.capitalize()}Pom"(type: Sign, group: 'signing') {
-            sign project.file("$buildDir/publications/${publicationName}/pom-default.xml")
-            outputs.upToDateWhen { false }
-        }
-    }
-
-    tasks.whenTaskAdded { task ->
-        def matcher = task.name =~ /^generatePomFileFor(\w+)Publication$/
-        if (matcher.matches()) {
-            def signPom = tasks.findByName("sign${matcher[0][1]}Pom")
-            if (signPom) {
-                signPom.dependsOn task
-            }
-        }
-    }
-
-    tasks.whenTaskAdded { task ->
-        def matcher = task.name =~ /^publish(\w+)PublicationTo.*$/
-        if (matcher.matches()) {
-            def signPom = tasks.findByName("sign${matcher[0][1]}Pom")
-            if (signPom) {
-                task.dependsOn signPom
-            }
-            task.dependsOn signArchives
-        }
+    task javadocJar(type: Jar, dependsOn: javadoc) {
+        from javadoc.destinationDir
+        classifier = 'javadoc'
     }
 
     publishing {
-        repositories {
-            maven {
-                if (!project.version.endsWith('-SNAPSHOT')) {
-                    url "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
-                } else {
-                    url "https://oss.sonatype.org/content/repositories/snapshots/"
+        publications {
+            configurations.bundles.artifacts.all { archive ->
+                def publicationName = archive.archiveTask.name - 'Jar'
+                "$publicationName"(MavenPublication) {
+                    artifactId "${archive.name}"
+                    configurePom(pom, artifactId, 'A lightweight bundle of PostgreSQL database with reduced size')
+
+                    artifact archive
+                    artifact sourcesJar
+                    artifact javadocJar
                 }
-                credentials {
-                    username ossrhUsername
-                    password ossrhPassword
+            }
+        }
+    }
+}
+
+publishing {
+    publications {
+        if (!distNameParam && !archNameParam && !dockerImageParam) {
+            bom(MavenPublication) {
+                artifactId 'embedded-postgres-binaries-bom'
+                configurePom(pom, artifactId, 'Bill of Materials')
+
+                pom.withXml {
+                    def root = asNode()
+                    root.children().last() + {
+                        resolveStrategy = Closure.DELEGATE_FIRST
+
+                        dependencyManagement {
+                            dependencies {
+                                project.subprojects.collectMany { it.configurations.bundles.artifacts }
+                                    .sort { archive ->
+                                        archive.name.replaceFirst(/^embedded-postgres-binaries-([^-]+-([^-]+).*)$/, { all, suffix, arch ->
+                                            ['amd64', 'i386'].indexOf(arch).with { it != -1 ? it : 9 } + suffix
+                                        })
+                                    }
+                                    .each { archive ->
+                                        dependency {
+                                            groupId "${project.group}"
+                                            artifactId "${archive.name}"
+                                            version "${project.version}"
+
+                                            if (!archive.name.contains('amd64') || archive.name.contains('lite')) {
+                                                optional 'true'
+                                            }
+                                        }
+                                    }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+allprojects {
+    bintray {
+        user = bintrayUser
+        key = bintrayApiKey
+        publications = project.publishing.publications.findAll().collect { it.name }
+        pkg {
+            userOrg = 'zonky'
+            repo = 'maven'
+            name = 'embedded-postgres-binaries'
+            version {
+                name = project.version
+                gpg {
+                    sign = true
+                    passphrase = signingPassword
+                }
+                mavenCentralSync {
+                    user = ossrhUsername
+                    password = ossrhPassword
                 }
             }
         }
@@ -352,102 +379,24 @@ allprojects {
     }
 
     task uploadArchives(group: 'publishing') {
-        configurations.bundles.artifacts.all { archive ->
-            def publicationName = archive.archiveTask.name - 'Jar'
-            dependsOn "publish${publicationName.capitalize()}PublicationToMavenRepository"
-        }
+        dependsOn bintrayUpload
     }
 
     tasks.whenTaskAdded { task ->
-        if (task.name == 'generatePomFileForBomPublication') {
-            install.dependsOn 'publishBomPublicationToMavenLocal'
-            uploadArchives.dependsOn 'publishBomPublicationToMavenRepository'
+        if (task.name == 'publishBomPublicationToMavenLocal') {
+            install.dependsOn task
         }
     }
 }
 
-subprojects {
-    publishing {
-        publications {
-            configurations.bundles.artifacts.all { archive ->
-                def publicationName = archive.archiveTask.name - 'Jar'
-                "$publicationName"(MavenPublication) {
-                    artifactId "${archive.name}"
-                    artifact archive
-                    configurePom(pom, 'A lightweight bundle of PostgreSQL database with reduced size')
-
-                    pom.withXml {
-                        def root = asNode()
-                        root.get('packaging').first().value = 'jar'
-                    }
-
-                    signing.required && project.tasks.withType(Sign) {
-                        signatures.findAll {
-                            it.getToSignArtifact()?.name == "${archive.name}" || it.file.path.startsWith("$buildDir/publications/$publicationName/")
-                        }.each {
-                            artifact source: it.file, classifier: it.classifier ?: null, extension: it.type == 'xml.asc' ? 'pom.asc' : it.type
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-publishing {
-    publications {
-        if (!distNameParam && !archNameParam && !dockerImageParam) {
-            bom(MavenPublication) {
-                artifactId 'embedded-postgres-binaries-bom'
-                configurePom(pom, 'Bill of Materials')
-
-                pom.withXml {
-                    def root = asNode()
-                    root.get('packaging').first().value = 'pom'
-                    root.children().last() + {
-                        resolveStrategy = Closure.DELEGATE_FIRST
-
-                        dependencyManagement {
-                            dependencies {
-                                project.subprojects.collectMany { it.configurations.bundles.artifacts }
-                                        .sort { archive ->
-                                            archive.name.replaceFirst(/^embedded-postgres-binaries-([^-]+-([^-]+).*)$/, { all, suffix, arch ->
-                                                ['amd64', 'i386'].indexOf(arch).with { it != -1 ? it : 9 } + suffix
-                                            })
-                                        }
-                                        .each { archive ->
-                                            dependency {
-                                                groupId "${project.group}"
-                                                artifactId "${archive.name}"
-                                                version "${project.version}"
-
-                                                if (!archive.name.contains('amd64') || archive.name.contains('lite')) {
-                                                    optional 'true'
-                                                }
-                                            }
-                                        }
-                            }
-                        }
-                    }
-                }
-
-                signing.required && project.tasks.getByName('signBomPom') {
-                    signatures.all {
-                        artifact source: it.file, classifier: it.classifier ?: null, extension: it.type == 'xml.asc' ? 'pom.asc' : it.type
-                    }
-                }
-            }
-        }
-    }
-}
-
-def configurePom(pom, desc) {
+def configurePom(pom, artifact, desc) {
     pom.withXml {
         def root = asNode()
 
         root.children().last() + {
             resolveStrategy = Closure.DELEGATE_FIRST
 
+            name artifact
             description desc
             url 'https://github.com/zonkyio/embedded-postgres-binaries'
 

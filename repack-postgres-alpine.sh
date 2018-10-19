@@ -54,8 +54,8 @@ docker run -i --rm -v ${TRG_DIR}:/usr/local/pg-dist $DOCKER_OPTS $IMG_NAME /bin/
         && mkdir -p /usr/src/ossp-uuid \
         && tar -xf uuid.tar.gz -C /usr/src/ossp-uuid --strip-components 1 \
         && cd /usr/src/ossp-uuid \
-        && wget -O config.guess 'https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=HEAD' \
-        && wget -O config.sub 'https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;hb=HEAD' \
+        && wget -O config.guess 'https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=b8ee5f79949d1d40e8820a774d813660e1be52d3' \
+        && wget -O config.sub 'https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;hb=b8ee5f79949d1d40e8820a774d813660e1be52d3' \
         && ./configure --prefix=/usr/local \
         && make -j\$(nproc) \
         && make install \
@@ -66,8 +66,8 @@ docker run -i --rm -v ${TRG_DIR}:/usr/local/pg-dist $DOCKER_OPTS $IMG_NAME /bin/
     && mkdir -p /usr/src/postgresql \
     && tar -xf postgresql.tar.bz2 -C /usr/src/postgresql --strip-components 1 \
     && cd /usr/src/postgresql \
-    && wget -O config/config.guess 'https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=HEAD' \
-    && wget -O config/config.sub 'https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;hb=HEAD' \
+    && wget -O config/config.guess 'https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=b8ee5f79949d1d40e8820a774d813660e1be52d3' \
+    && wget -O config/config.sub 'https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;hb=b8ee5f79949d1d40e8820a774d813660e1be52d3' \
     && ./configure \
         CFLAGS='-O2' \
         PYTHON=/usr/bin/python3 \

@@ -19,7 +19,7 @@ ext {
     dockerImageParam = project.findProperty('dockerImage') ?: ''
     qemuPathParam = project.findProperty('qemuPath') ?: ''
 
-    pgMajorVersionParam = (pgVersionParam =~ /(\d+)(\.\d+)+/).with { matches() ? it[0][1].toInteger() : null }
+    pgMajorVersionParam = (pgVersionParam =~ /(\d+).+/).with { matches() ? it[0][1].toInteger() : null }
 }
 
 allprojects {
@@ -105,7 +105,7 @@ def alpineVariants = [
 project(':repacked-platforms') {
     if (!distNameParam && !archNameParam && !dockerImageParam) {
         task generateRepackedPostgresBundles(group: "repacking", type: Exec, dependsOn: validateInputs) {
-            inputs.property('pgBinVersionParam', pgVersionParam)
+            inputs.property('pgBinVersionParam', pgBinVersionParam)
 
             inputs.file("$rootDir/repack-postgres.sh")
             outputs.dir("$temporaryDir/bundles")

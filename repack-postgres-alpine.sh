@@ -43,6 +43,7 @@ docker run -i --rm -v ${TRG_DIR}:/usr/local/pg-dist $DOCKER_OPTS $IMG_NAME /bin/
         util-linux-dev \
         libxml2-dev \
         libxslt-dev \
+        openssl-dev \
         zlib-dev \
         perl-dev \
         python3-dev \
@@ -81,15 +82,17 @@ docker run -i --rm -v ${TRG_DIR}:/usr/local/pg-dist $DOCKER_OPTS $IMG_NAME /bin/
         \$([ "$ICU_ENABLED" = true ] && echo '--with-icu') \
         --with-libxml \
         --with-libxslt \
+        --with-openssl \
         --with-perl \
         --with-python \
         --with-tcl \
         --without-readline \
-    && make -j\$(nproc) \
-    && make install \
+    && make -j\$(nproc) world \
+    && make install-world \
+    && make -C contrib install \
     \
     && cd /usr/local/pg-build \
-    && cp /lib/libuuid.so.1 /lib/libz.so.1 /usr/lib/libxml2.so.2 /usr/lib/libxslt.so.1 ./lib \
+    && cp /lib/libuuid.so.1 /lib/libz.so.1 /usr/lib/libssl.so /usr/lib/libcrypto.so /usr/lib/libxml2.so.2 /usr/lib/libxslt.so.1 ./lib \
     && if [ "$ICU_ENABLED" = true ]; then cp --no-dereference /usr/lib/libicudata.so* /usr/lib/libicuuc.so* /usr/lib/libicui18n.so* ./lib; fi \
     && find ./bin -type f \( -name 'initdb' -o -name 'pg_ctl' -o -name 'postgres' \) -print0 | xargs -0 -n1 chrpath -r '\$ORIGIN/../lib' \
     && tar -cJvf /usr/local/pg-dist/postgres-linux-alpine_linux.txz --hard-dereference \

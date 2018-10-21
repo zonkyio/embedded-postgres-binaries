@@ -66,10 +66,9 @@ docker run -i --rm -v ${TRG_DIR}:/usr/local/pg-dist $DOCKER_OPTS $IMG_NAME /bin/
     && wget -O config/config.guess 'https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=b8ee5f79949d1d40e8820a774d813660e1be52d3' \
     && wget -O config/config.sub 'https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;hb=b8ee5f79949d1d40e8820a774d813660e1be52d3' \
     && ./configure \
-        CFLAGS='-O2 -DMAP_HUGETLB=0x40000' \
+        CFLAGS='-Os -DMAP_HUGETLB=0x40000' \
         PYTHON=/usr/bin/python3 \
         --prefix=/usr/local/pg-build \
-        --enable-debug \
         --enable-integer-datetimes \
         --enable-thread-safety \
         --with-ossp-uuid \

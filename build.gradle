@@ -76,11 +76,14 @@ task prepareQemuExecutables(type: Copy, dependsOn: downloadQemuExecutables) {
 
 def repackedPlatforms = [
         ['name':'darwin', 'arch':'amd64'],
-        ['name':'windows', 'arch':'i386'],
-        ['name':'windows', 'arch':'amd64'],
-        ['name':'linux', 'arch':'i386'],
-        ['name':'linux', 'arch':'amd64']
+        ['name':'windows', 'arch':'amd64']
 ]
+
+if (pgMajorVersionParam < 11) {
+    repackedPlatforms << ['name':'windows', 'arch':'i386']
+    repackedPlatforms << ['name':'linux', 'arch':'i386']
+    repackedPlatforms << ['name':'linux', 'arch':'amd64']
+}
 
 def debianPlatforms = [
         ['arch':'arm32v6', 'image':'resin/rpi-raspbian:jessie'],
@@ -88,6 +91,11 @@ def debianPlatforms = [
         ['arch':'arm64v8'],
         ['arch':'ppc64le']
 ]
+
+if (pgMajorVersionParam >= 11) {
+    debianPlatforms << ['arch':'i386']
+    debianPlatforms << ['arch':'amd64']
+}
 
 def alpinePlatforms = [
         ['arch':'i386'],

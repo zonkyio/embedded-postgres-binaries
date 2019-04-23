@@ -1,12 +1,14 @@
 #!/bin/bash
 
 DOCKER_OPTS=
+POSTGIS_VERSION=
 LITE_OPT=false
 
-while getopts "v:i:o:l" opt; do
+while getopts "v:i:g:o:l" opt; do
     case $opt in
     v) VERSION=$OPTARG ;;
     i) IMG_NAME=$OPTARG ;;
+    g) POSTGIS_VERSION=$OPTARG ;;
     o) DOCKER_OPTS=$OPTARG ;;
     l) LITE_OPT=true ;;
     \?) exit 1 ;;
@@ -22,6 +24,11 @@ fi
 if [[ "$VERSION" == 9.* ]] && [[ "$LITE_OPT" == true ]] ; then
   echo "Lite option is supported only for PostgreSQL 10 or later!" && exit 1;
 fi
+
+PROJ_VERSION=6.0.0
+PROJ_DATUMGRID_VERSION=1.8
+GEOS_VERSION=3.7.2
+GDAL_VERSION=2.4.1
 
 E2FS_ENABLED=$([[ ! "$VERSION" == 9.3.* ]] && echo true || echo false);
 ICU_ENABLED=$([[ ! "$VERSION" == 9.* ]] && [[ ! "$LITE_OPT" == true ]] && echo true || echo false);
@@ -91,9 +98,53 @@ docker run -i --rm -v ${TRG_DIR}:/usr/local/pg-dist $DOCKER_OPTS $IMG_NAME /bin/
     && make install-world \
     && make -C contrib install \
     \
+    && if [ -n "$POSTGIS_VERSION" ]; then \
+      apk add --no-cache curl g++ json-c-dev linux-headers sqlite sqlite-dev sqlite-libs unzip \
+      && mkdir -p /usr/src/proj \
+        && curl -sL 'http://download.osgeo.org/proj/proj-$PROJ_VERSION.tar.gz' | tar -xzf - -C /usr/src/proj --strip-components 1 \
+        && cd /usr/src/proj \
+        && curl -sL 'http://download.osgeo.org/proj/proj-datumgrid-$PROJ_DATUMGRID_VERSION.zip' >proj-datumgrid.zip \
+        && unzip -o proj-datumgrid.zip -d data\
+        && curl -sL 'https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=b8ee5f79949d1d40e8820a774d813660e1be52d3' >config.guess \
+        && curl -sL 'https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;hb=b8ee5f79949d1d40e8820a774d813660e1be52d3' >config.sub \
+        && ./configure --disable-static --prefix=/usr/local/pg-build \
+        && make -j\$(nproc) \
+        && make install \
+      && mkdir -p /usr/src/geos \
+        && curl -sL 'http://download.osgeo.org/geos/geos-$GEOS_VERSION.tar.bz2' | tar -xjf - -C /usr/src/geos --strip-components 1 \
+        && cd /usr/src/geos \
+        && curl -sL 'https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=b8ee5f79949d1d40e8820a774d813660e1be52d3' >config.guess \
+        && curl -sL 'https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;hb=b8ee5f79949d1d40e8820a774d813660e1be52d3' >config.sub \
+        && ./configure --disable-static --prefix=/usr/local/pg-build \
+        && make -j\$(nproc) \
+        && make install \
+      && mkdir -p /usr/src/gdal \
+        && curl -sL 'http://download.osgeo.org/gdal/$GDAL_VERSION/gdal-$GDAL_VERSION.tar.xz' | tar -xJf - -C /usr/src/gdal --strip-components 1 \
+        && cd /usr/src/gdal \
+        && curl -sL 'https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=b8ee5f79949d1d40e8820a774d813660e1be52d3' >config.guess \
+        && curl -sL 'https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;hb=b8ee5f79949d1d40e8820a774d813660e1be52d3' >config.sub \
+        && ./configure --disable-static --prefix=/usr/local/pg-build \
+        && make -j\$(nproc) \
+        && make install \
+      && mkdir -p /usr/src/postgis \
+        && curl -sL 'http://postgis.net/stuff/postgis-$POSTGIS_VERSION.tar.gz' | tar -xzf - -C /usr/src/postgis --strip-components 1 \
+        && cd /usr/src/postgis \
+        && curl -sL 'https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=b8ee5f79949d1d40e8820a774d813660e1be52d3' >config.guess \
+        && curl -sL 'https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;hb=b8ee5f79949d1d40e8820a774d813660e1be52d3' >config.sub \
+        && ./configure \
+            --prefix=/usr/local/pg-build \
+            --with-pgconfig=/usr/local/pg-build/bin/pg_config \
+            --with-geosconfig=/usr/local/pg-build/bin/geos-config \
+            --with-projdir=/usr/local/pg-build \
+            --with-gdalconfig=/usr/local/pg-build/bin/gdal-config \
+        && make -j\$(nproc) \
+        && make install \
+    ; fi \
+    \
     && cd /usr/local/pg-build \
     && cp /lib/libuuid.so.1 /lib/libz.so.1 /lib/libssl.so.1.0.0 /lib/libcrypto.so.1.0.0 /usr/lib/libxml2.so.2 /usr/lib/libxslt.so.1 ./lib \
     && if [ "$ICU_ENABLED" = true ]; then cp --no-dereference /usr/lib/libicudata.so* /usr/lib/libicuuc.so* /usr/lib/libicui18n.so* ./lib; fi \
+    && if [ -n "$POSTGIS_VERSION" ]; then cp --no-dereference /usr/lib/libjson-c.so* /usr/lib/libsqlite3.so* ./lib ; fi \
     && find ./bin -type f \( -name 'initdb' -o -name 'pg_ctl' -o -name 'postgres' \) -print0 | xargs -0 -n1 chrpath -r '\$ORIGIN/../lib' \
     && tar -cJvf /usr/local/pg-dist/postgres-linux-alpine_linux.txz --hard-dereference \
         share/postgresql \

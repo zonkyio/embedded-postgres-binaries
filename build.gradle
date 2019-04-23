@@ -14,6 +14,7 @@ ext {
 
     pgVersionParam = project.findProperty('pgVersion') ?: ("${project.version}" - '-SNAPSHOT')
     pgBinVersionParam = project.findProperty('pgBinVersion') ?: "${pgVersionParam}-1"
+    postgisVersion = project.findProperty('postgisVersion') ?: ''
     archNameParam = project.findProperty('archName') ?: ''
     distNameParam = project.findProperty('distName') ?: ''
     dockerImageParam = project.findProperty('dockerImage') ?: ''
@@ -28,6 +29,7 @@ allprojects {
     apply plugin: 'com.jfrog.bintray'
 
     group 'io.zonky.test.postgres'
+    version += postgisVersion ? "-postgis-$postgisVersion" : ''
     archivesBaseName = 'embedded-postgres-binaries'
     sourceCompatibility = 1.6
 
@@ -111,7 +113,7 @@ def alpineVariants = [
 ]
 
 project(':repacked-platforms') {
-    if (!distNameParam && !archNameParam && !dockerImageParam) {
+    if (!distNameParam && !archNameParam && !dockerImageParam && !postgisVersion) {
         task generateRepackedPostgresBundles(group: "repacking", type: Exec, dependsOn: validateInputs) {
             inputs.property('pgBinVersionParam', pgBinVersionParam)
 
@@ -135,7 +137,7 @@ project(':repacked-platforms') {
 }
 
 project(':debian-platforms') {
-    if (!distNameParam && !archNameParam && !dockerImageParam) {
+    if (!distNameParam && !archNameParam && !dockerImageParam && !postgisVersion) {
         debianPlatforms.each { platform ->
             task "generate${platform.arch.capitalize()}DebianPostgresBundle"(group: "build (${platform.arch})", type: LazyExec, dependsOn: [validateInputs, prepareQemuExecutables]) {
                 def qemuBindings = { resolveQemuBindings() }
@@ -172,7 +174,7 @@ project(':debian-platforms') {
 
 alpineVariants.each { variant ->
     project(":alpine${variant.name ? '-' + variant.name : ''}-platforms") {
-        if (!distNameParam && !archNameParam && !dockerImageParam && variant.enabled) {
+        if (!distNameParam && !archNameParam && !dockerImageParam && !postgisVersion && variant.enabled) {
             alpinePlatforms.each { platform ->
 
                 task "generate${platform.arch.capitalize()}Alpine${variant.name.capitalize()}PostgresBundle"(group: "build (${platform.arch})", type: LazyExec, dependsOn: [validateInputs, prepareQemuExecutables]) {
@@ -210,7 +212,7 @@ alpineVariants.each { variant ->
 }
 
 project(':custom-debian-platform') {
-    if (!distNameParam && (archNameParam || dockerImageParam)) {
+    if (!distNameParam && (archNameParam || dockerImageParam || postgisVersion)) {
         def archName = archNameParam ?: 'amd64'
 
         task generateCustomDebianPostgresBundle(group: 'build (custom)', type: LazyExec, dependsOn: [validateInputs, prepareQemuExecutables]) {
@@ -223,17 +225,25 @@ project(':custom-debian-platform') {
                 println "dockerImage:   ${dockerImage()}"
                 println "qemuBindings:  ${qemuBindings()}"
                 println ''
+
+                if (postgisVersion) {
+                    println '===== Extensions ====='
+                    println "postgisVersion: $postgisVersion"
+                    println '======================'
+                    println ''
+                }
             }
 
             inputs.property('pgVersion', pgVersionParam)
             inputs.property('archName', archName)
             inputs.property('dockerImage', dockerImage)
+            inputs.property('postgisVersion', postgisVersion)
 
             inputs.file("$rootDir/repack-postgres-debian.sh")
             outputs.dir("$temporaryDir/bundle")
 
             workingDir temporaryDir
-            commandLine "$rootDir/repack-postgres-debian.sh", '-v', "$pgVersionParam", '-i', dockerImage, '-o', qemuBindings
+            commandLine "$rootDir/repack-postgres-debian.sh", '-v', "$pgVersionParam", '-i', dockerImage, '-g', postgisVersion, '-o', qemuBindings
         }
 
         task customDebianJar(group: 'build (custom)', type: Jar) {
@@ -262,17 +272,25 @@ alpineVariants.each { variant ->
                     println "dockerImage:   ${dockerImage()}"
                     println "qemuBindings:  ${qemuBindings()}"
                     println ''
+
+                    if (postgisVersion) {
+                        println '===== Extensions ====='
+                        println "postgisVersion: $postgisVersion"
+                        println '======================'
+                        println ''
+                    }
                 }
 
                 inputs.property('pgVersion', pgVersionParam)
                 inputs.property('archName', archName)
                 inputs.property('dockerImage', dockerImage)
+                inputs.property('postgisVersion', postgisVersion)
 
                 inputs.file("$rootDir/repack-postgres-alpine.sh")
                 outputs.dir("$temporaryDir/bundle")
 
                 workingDir temporaryDir
-                commandLine "$rootDir/repack-postgres-alpine.sh", '-v', "$pgVersionParam", '-i', dockerImage, '-o', qemuBindings, "${variant.opt}"
+                commandLine "$rootDir/repack-postgres-alpine.sh", '-v', "$pgVersionParam", '-i', dockerImage, '-g', postgisVersion, '-o', qemuBindings, "${variant.opt}"
             }
 
             task "customAlpine${variant.name.capitalize()}Jar"(group: 'build (custom)', type: Jar) {

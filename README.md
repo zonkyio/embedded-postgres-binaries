@@ -1,28 +1,36 @@
+# <img src="zonky.jpg" height="100"> Embedded Postgres Binaries
+
 ## Introduction
 
 This project provides lightweight bundles of PostgreSQL binaries with reduced size that are intended for testing purposes.
 It is a supporting project for the primary [io.zonky.test:embedded-database-spring-test](https://github.com/zonkyio/embedded-database-spring-test) and [io.zonky.test:embedded-postgres](https://github.com/zonkyio/embedded-postgres) projects.
-But with a little help it can be also applicable with [com.opentable:otj-pg-embedded](https://github.com/opentable/otj-pg-embedded) and maybe some other projects. 
+However, with a little effort it can be also applicable with [com.opentable:otj-pg-embedded](https://github.com/opentable/otj-pg-embedded) and maybe some other projects. 
 
-## Use with [embedded-database-spring-test](https://github.com/zonkyio/embedded-database-spring-test) or [embedded-postgres](https://github.com/zonkyio/embedded-postgres) projects
+## Provides
+
+* Lightweight bundles of PostgreSQL binaries with reduced size (~10MB)
+* Embedded PostgreSQL 11+ binaries even for Linux platform
+* Configurable version of PostgreSQL binaries
+
+## Use with [embedded-database-spring-test](https://github.com/zonkyio/embedded-database-spring-test) or [embedded-postgres](https://github.com/zonkyio/embedded-postgres) project
 
 All necessary dependencies are already included in these projects, so no further action is required.
-But you can change the version of the binaries by following the instructions described in [Postgres version](#postgres-version).
+However, you can change the version of the postgres binaries by following the instructions described in [Postgres version](#postgres-version).
 
 ## Use with [com.opentable:otj-pg-embedded](https://github.com/opentable/otj-pg-embedded) project
 
-Add some of the [available dependencies](https://mvnrepository.com/artifact/io.zonky.test.postgres) to your Maven configuration:
+First, you have to add any of the [available dependencies](https://mvnrepository.com/artifact/io.zonky.test.postgres) to your Maven configuration:
 
 ```xml
 <dependency>
     <groupId>io.zonky.test.postgres</groupId>
     <artifactId>embedded-postgres-binaries-linux-amd64</artifactId>
-    <version>11.1.0</version>
+    <version>11.4.0</version>
     <scope>test</scope>
 </dependency>
 ```
 
-Further, you need to implement a custom [PgBinaryResolver](https://github.com/opentable/otj-pg-embedded/blob/master/src/main/java/com/opentable/db/postgres/embedded/PgBinaryResolver.java): 
+Then you need to implement a custom [PgBinaryResolver](https://github.com/opentable/otj-pg-embedded/blob/master/src/main/java/com/opentable/db/postgres/embedded/PgBinaryResolver.java): 
 ```java
 public class CustomPostgresBinaryResolver implements PgBinaryResolver {
     public InputStream getPgBinary(String system, String architecture) throws IOException {
@@ -46,7 +54,7 @@ public class CustomPostgresBinaryResolver implements PgBinaryResolver {
 
 </details><br/>
 
-And register it:
+And finally register it to the junit rule.
 
 ```java
 @Rule
@@ -56,7 +64,7 @@ public SingleInstancePostgresRule pg = EmbeddedPostgresRules.singleInstance()
 
 ## Postgres version
 
-The version of the binaries can be managed by importing `embedded-postgres-binaries-bom` in a required version into your dependency management section.
+The version of the postgres binaries can be managed by importing `embedded-postgres-binaries-bom` in a required version into your dependency management section.
 
 ```xml
 <dependencyManagement>

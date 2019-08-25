@@ -1,4 +1,5 @@
 #!/bin/bash
+set -ex
 
 DOCKER_OPTS=
 POSTGIS_VERSION=
@@ -38,7 +39,7 @@ docker run -i --rm -v ${TRG_DIR}:/usr/local/pg-dist \
 -e PROJ_DATUMGRID_VERSION=1.8 \
 -e GEOS_VERSION=3.7.2 \
 -e GDAL_VERSION=2.4.1 \
-$DOCKER_OPTS $IMG_NAME /bin/bash -c 'echo "Starting building postgres binaries" \
+$DOCKER_OPTS $IMG_NAME /bin/bash -ex -c 'echo "Starting building postgres binaries" \
     && apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
         wget \

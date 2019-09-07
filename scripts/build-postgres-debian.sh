@@ -40,6 +40,7 @@ docker run -i --rm -v ${TRG_DIR}:/usr/local/pg-dist \
 -e GEOS_VERSION=3.7.2 \
 -e GDAL_VERSION=2.4.1 \
 $DOCKER_OPTS $IMG_NAME /bin/bash -ex -c 'echo "Starting building postgres binaries" \
+    && sed "s@archive.ubuntu.com@cz.archive.ubuntu.com@" -i /etc/apt/sources.list \
     && apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
         wget \

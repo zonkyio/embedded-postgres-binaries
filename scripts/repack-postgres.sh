@@ -61,7 +61,7 @@ DIST_FILE=$DIST_DIR/$FILE_NAME
 
 mkdir -p $DIST_DIR $TRG_DIR
 
-[ -e $DIST_FILE ] || wget -O $DIST_FILE "http://get.enterprisedb.com/postgresql/$FILE_NAME"
+[ -e $DIST_FILE ] || wget -O $DIST_FILE "https://get.enterprisedb.com/postgresql/$FILE_NAME"
 
 rm -rf $PKG_DIR && mkdir -p $PKG_DIR
 

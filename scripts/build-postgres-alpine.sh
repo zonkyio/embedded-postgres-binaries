@@ -1,4 +1,5 @@
 #!/bin/bash
+set -ex
 
 DOCKER_OPTS=
 POSTGIS_VERSION=
@@ -25,6 +26,7 @@ if [[ "$PG_VERSION" == 9.* ]] && [[ "$LITE_OPT" == true ]] ; then
   echo "Lite option is supported only for PostgreSQL 10 or later!" && exit 1;
 fi
 
+E2FS_ENABLED=$([[ ! "$PG_VERSION" == 9.3.* ]] && echo true || echo false);
 ICU_ENABLED=$([[ ! "$PG_VERSION" == 9.* ]] && [[ ! "$LITE_OPT" == true ]] && echo true || echo false);
 
 TRG_DIR=$PWD/bundle
@@ -33,42 +35,46 @@ mkdir -p $TRG_DIR
 docker run -i --rm -v ${TRG_DIR}:/usr/local/pg-dist \
 -e PG_VERSION=$PG_VERSION \
 -e POSTGIS_VERSION=$POSTGIS_VERSION \
+-e E2FS_ENABLED=$E2FS_ENABLED \
 -e ICU_ENABLED=$ICU_ENABLED \
 -e PROJ_VERSION=6.0.0 \
 -e PROJ_DATUMGRID_VERSION=1.8 \
 -e GEOS_VERSION=3.7.2 \
 -e GDAL_VERSION=2.4.1 \
-$DOCKER_OPTS $IMG_NAME /bin/bash -c 'echo "Starting building postgres binaries" \
-    && apt-get update && apt-get install -y --no-install-recommends \
+$DOCKER_OPTS $IMG_NAME /bin/sh -ex -c 'echo "Starting building postgres binaries" \
+    && apk add --no-cache \
+        coreutils \
         ca-certificates \
         wget \
-        bzip2 \
-        xz-utils \
+        tar \
+        xz \
         gcc \
-        g++ \
         make \
-        pkg-config \
         libc-dev \
-        libicu-dev \
-        libossp-uuid-dev \
+        icu-dev \
+        util-linux-dev \
         libxml2-dev \
-        libxslt1-dev \
-        libssl-dev \
-        libz-dev \
-        libperl-dev \
+        libxslt-dev \
+        openssl-dev \
+        zlib-dev \
+        perl-dev \
         python3-dev \
         tcl-dev \
+        chrpath \
         \
-    && wget -O patchelf.tar.gz "https://nixos.org/releases/patchelf/patchelf-0.9/patchelf-0.9.tar.gz" \
-    && mkdir -p /usr/src/patchelf \
-    && tar -xf patchelf.tar.gz -C /usr/src/patchelf --strip-components 1 \
-    && cd /usr/src/patchelf \
-    && wget -O config.guess "https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=b8ee5f79949d1d40e8820a774d813660e1be52d3" \
-    && wget -O config.sub "https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;hb=b8ee5f79949d1d40e8820a774d813660e1be52d3" \
-    && ./configure --prefix=/usr/local \
-    && make -j$(nproc) \
-    && make install \
-    \
+    && if [ "$E2FS_ENABLED" = false ]; then \
+        wget -O uuid.tar.gz "https://www.mirrorservice.org/sites/ftp.ossp.org/pkg/lib/uuid/uuid-1.6.2.tar.gz" \
+        && mkdir -p /usr/src/ossp-uuid \
+        && tar -xf uuid.tar.gz -C /usr/src/ossp-uuid --strip-components 1 \
+        && cd /usr/src/ossp-uuid \
+        && wget -O config.guess "https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=b8ee5f79949d1d40e8820a774d813660e1be52d3" \
+        && wget -O config.sub "https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;hb=b8ee5f79949d1d40e8820a774d813660e1be52d3" \
+        && ./configure --prefix=/usr/local \
+        && make -j$(nproc) \
+        && make install \
+        && cp --no-dereference /usr/local/lib/libuuid.* /lib; \
+       fi \
+       \
     && wget -O postgresql.tar.bz2 "https://ftp.postgresql.org/pub/source/v$PG_VERSION/postgresql-$PG_VERSION.tar.bz2" \
     && mkdir -p /usr/src/postgresql \
     && tar -xf postgresql.tar.bz2 -C /usr/src/postgresql --strip-components 1 \
@@ -76,12 +82,15 @@ $DOCKER_OPTS $IMG_NAME /bin/bash -c 'echo "Starting building postgres binaries" 
     && wget -O config/config.guess "https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=b8ee5f79949d1d40e8820a774d813660e1be52d3" \
     && wget -O config/config.sub "https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;hb=b8ee5f79949d1d40e8820a774d813660e1be52d3" \
     && ./configure \
-        CFLAGS="-Os -DMAP_HUGETLB=0x40000" \
+        CFLAGS="-Os" \
         PYTHON=/usr/bin/python3 \
         --prefix=/usr/local/pg-build \
         --enable-integer-datetimes \
         --enable-thread-safety \
-        --with-ossp-uuid \
+        $([ "$E2FS_ENABLED" = true ] && echo "--with-uuid=e2fs" || echo "--with-ossp-uuid") \
+        --with-gnu-ld \
+        --with-includes=/usr/local/include \
+        --with-libraries=/usr/local/lib \
         $([ "$ICU_ENABLED" = true ] && echo "--with-icu") \
         --with-libxml \
         --with-libxslt \
@@ -95,7 +104,7 @@ $DOCKER_OPTS $IMG_NAME /bin/bash -c 'echo "Starting building postgres binaries" 
     && make -C contrib install \
     \
     && if [ -n "$POSTGIS_VERSION" ]; then \
-      apt-get install -y --no-install-recommends curl libjson-c-dev libsqlite3-0 libsqlite3-dev sqlite3 unzip \
+      apk add --no-cache curl g++ json-c-dev linux-headers sqlite sqlite-dev sqlite-libs unzip \
       && mkdir -p /usr/src/proj \
         && curl -sL "http://download.osgeo.org/proj/proj-$PROJ_VERSION.tar.gz" | tar -xzf - -C /usr/src/proj --strip-components 1 \
         && cd /usr/src/proj \
@@ -138,14 +147,11 @@ $DOCKER_OPTS $IMG_NAME /bin/bash -c 'echo "Starting building postgres binaries" 
     ; fi \
     \
     && cd /usr/local/pg-build \
-    && cp /lib/*/libz.so.1 /lib/*/libuuid.so.1 /lib/*/liblzma.so.5 /usr/lib/*/libxml2.so.2 /usr/lib/*/libxslt.so.1 ./lib \
-    && cp /lib/*/libssl.so.1.0.0 /lib/*/libcrypto.so.1.0.0 ./lib || cp /usr/lib/*/libssl.so.1.0.0 /usr/lib/*/libcrypto.so.1.0.0 ./lib \
-    && if [ "$ICU_ENABLED" = true ]; then cp --no-dereference /usr/lib/*/libicudata.so* /usr/lib/*/libicuuc.so* /usr/lib/*/libicui18n.so* ./lib; fi \
-    && if [ -n "$POSTGIS_VERSION" ]; then cp --no-dereference /lib/*/libjson-c.so* /usr/lib/*/libsqlite3.so* ./lib ; fi \
-    && find ./bin -type f \( -name "initdb" -o -name "pg_ctl" -o -name "postgres" \) -print0 | xargs -0 -n1 patchelf --set-rpath "\$ORIGIN/../lib" \
-    && find ./lib -maxdepth 1 -type f -name "*.so*" -print0 | xargs -0 -n1 patchelf --set-rpath "\$ORIGIN" \
-    && find ./lib/postgresql -maxdepth 1 -type f -name "*.so*" -print0 | xargs -0 -n1 patchelf --set-rpath "\$ORIGIN/.." \
-    && tar -cJvf /usr/local/pg-dist/postgres-linux-debian.txz --hard-dereference \
+    && cp /lib/libuuid.so.1 /lib/libz.so.1 /lib/libssl.so.1.0.0 /lib/libcrypto.so.1.0.0 /usr/lib/libxml2.so.2 /usr/lib/libxslt.so.1 ./lib \
+    && if [ "$ICU_ENABLED" = true ]; then cp --no-dereference /usr/lib/libicudata.so* /usr/lib/libicuuc.so* /usr/lib/libicui18n.so* ./lib; fi \
+    && if [ -n "$POSTGIS_VERSION" ]; then cp --no-dereference /usr/lib/libjson-c.so* /usr/lib/libsqlite3.so* ./lib ; fi \
+    && find ./bin -type f \( -name "initdb" -o -name "pg_ctl" -o -name "postgres" \) -print0 | xargs -0 -n1 chrpath -r "\$ORIGIN/../lib" \
+    && tar -cJvf /usr/local/pg-dist/postgres-linux-alpine_linux.txz --hard-dereference \
         share/postgresql \
         lib \
         bin/initdb \

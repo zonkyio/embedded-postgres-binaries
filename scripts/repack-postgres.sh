@@ -94,8 +94,7 @@ elif [ "$PLATFORM_NAME" = "windows" ] ; then
     share \
     lib/iconv.lib \
     lib/libxml2.lib \
-    lib/ssleay32.lib \
-    lib/ssleay32MD.lib \
+    $([ -f lib/ssleay32.lib ] && echo lib/ssleay32.lib lib/ssleay32MD.lib || echo lib/libssl.lib lib/libcrypto.lib) \
     lib/*.dll \
     bin/initdb.exe \
     bin/pg_ctl.exe \

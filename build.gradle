@@ -64,7 +64,7 @@ task validateInputs {
 task downloadQemuExecutables(type: Download, dependsOn: validateInputs) {
     onlyIf { !qemuPathParam && OperatingSystem.current().isLinux() && OperatingSystem.current().getArch() == 'amd64' }
     src(['arm', 'aarch64', 'ppc64le'].collect { arch ->
-        "https://github.com/multiarch/qemu-user-static/releases/download/v2.12.0/qemu-$arch-static"
+        "https://github.com/multiarch/qemu-user-static/releases/download/v4.1.0-1/qemu-$arch-static"
     })
     overwrite false
     dest file("$temporaryDir/downloads")

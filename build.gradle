@@ -83,8 +83,10 @@ def repackedPlatforms = [
 
 if (pgMajorVersionParam < 11) {
     repackedPlatforms << ['name':'windows', 'arch':'i386']
-    repackedPlatforms << ['name':'linux', 'arch':'i386']
-    repackedPlatforms << ['name':'linux', 'arch':'amd64']
+    if (pgVersionParam != '9.5.19') {
+        repackedPlatforms << ['name':'linux', 'arch':'i386']
+        repackedPlatforms << ['name':'linux', 'arch':'amd64']
+    }
 }
 
 def debianPlatforms = [
@@ -94,7 +96,7 @@ def debianPlatforms = [
         ['arch':'ppc64le']
 ]
 
-if (pgMajorVersionParam >= 11) {
+if (pgMajorVersionParam >= 11 || pgVersionParam == '9.5.19') {
     debianPlatforms << ['arch':'i386']
     debianPlatforms << ['arch':'amd64']
 }

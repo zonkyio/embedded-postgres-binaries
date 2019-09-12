@@ -43,8 +43,6 @@ $DOCKER_OPTS $IMG_NAME /bin/sh -ex -c 'echo "Starting building postgres binaries
         xz \
         unzip \
         \
-        libstdc++ \
-        \
     && addgroup -S -g 1000 test \
     && adduser -D -S -G test -u 1000 -s /bin/ash test \
     \

@@ -52,6 +52,7 @@ $DOCKER_OPTS $IMG_NAME /bin/sh -ex -c 'echo "Starting building postgres binaries
         make \
         libc-dev \
         icu-dev \
+        linux-headers \
         util-linux-dev \
         libxml2-dev \
         libxslt-dev \

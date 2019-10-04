@@ -7,6 +7,7 @@ notifications:
     on_failure: change
 env:
   global:
+    - PG12_VERSION=12.0
     - PG11_VERSION=11.5
     - PG10_VERSION=10.10
     - PG96_VERSION=9.6.15
@@ -15,7 +16,7 @@ env:
 install: skip
 jobs:
   include:
-    - stage: test [PG11]
+    - stage: test [PG12]
       name: amd64WindowsJar
       language: bash
       os: windows
@@ -27,6 +28,30 @@ jobs:
         - export JAVA_HOME=/c/jdk8
         - export PATH=$PATH:$JAVA_HOME/bin:"/c/Program Files/postgresql/10/bin"
         - export GRADLE_OPTS=-Dorg.gradle.daemon=false
+      env: VERSION=${PG12_VERSION}.0 PG_VERSION=$PG12_VERSION
+      script: ./gradlew :repacked-platforms:testAmd64WindowsJar -Pversion=$VERSION -PpgVersion=$PG_VERSION
+    - name: amd64DarwinJar
+      os: osx
+      env: VERSION=${PG12_VERSION}.0 PG_VERSION=$PG12_VERSION
+      script: ./gradlew :repacked-platforms:testAmd64DarwinJar -Pversion=$VERSION -PpgVersion=$PG_VERSION
+    - name: amd64AlpineJar
+      os: linux
+      env: VERSION=${PG12_VERSION}.0 PG_VERSION=$PG12_VERSION
+      script: ./gradlew :alpine-platforms:testAmd64AlpineJar -Pversion=$VERSION -PpgVersion=$PG_VERSION
+    - name: amd64AlpineLiteJar
+      os: linux
+      env: VERSION=${PG12_VERSION}.0 PG_VERSION=$PG12_VERSION
+      script: ./gradlew :alpine-lite-platforms:testAmd64AlpineLiteJar -Pversion=$VERSION -PpgVersion=$PG_VERSION
+    - name: amd64DebianJar
+      os: linux
+      env: VERSION=${PG12_VERSION}.0 PG_VERSION=$PG12_VERSION
+      script: ./gradlew :debian-platforms:testAmd64DebianJar -Pversion=$VERSION -PpgVersion=$PG_VERSION
+
+    - stage: test [PG11]
+      name: amd64WindowsJar
+      language: bash
+      os: windows
+      install: *windows_install
       env: VERSION=${PG11_VERSION}.0 PG_VERSION=$PG11_VERSION
       script: ./gradlew :repacked-platforms:testAmd64WindowsJar -Pversion=$VERSION -PpgVersion=$PG_VERSION
     - name: amd64DarwinJar

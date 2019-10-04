@@ -22,11 +22,11 @@ fi
 if [ -z "$IMG_NAME" ] ; then
   echo "Docker image parameter is required!" && exit 1;
 fi
-if [[ "$PG_VERSION" == 9.* ]] && [[ "$LITE_OPT" == true ]] ; then
+if echo "$PG_VERSION" | grep -q '^9\.' && [ "$LITE_OPT" = true ] ; then
   echo "Lite option is supported only for PostgreSQL 10 or later!" && exit 1;
 fi
 
-ICU_ENABLED=$([[ ! "$PG_VERSION" == 9.* ]] && [[ ! "$LITE_OPT" == true ]] && echo true || echo false);
+ICU_ENABLED=$(echo "$PG_VERSION" | grep -qv '^9\.' && [ "$LITE_OPT" != true ] && echo true || echo false);
 
 TRG_DIR=$PWD/bundle
 mkdir -p $TRG_DIR
@@ -140,7 +140,7 @@ $DOCKER_OPTS $IMG_NAME /bin/bash -ex -c 'echo "Starting building postgres binari
     ; fi \
     \
     && cd /usr/local/pg-build \
-    && cp /lib/*/libz.so.1 /lib/*/libuuid.so.1 /lib/*/liblzma.so.5 /usr/lib/*/libxml2.so.2 /usr/lib/*/libxslt.so.1 ./lib \
+    && cp /lib/*/libz.so.1 /lib/*/liblzma.so.5 /usr/lib/libossp-uuid.so.16 /usr/lib/*/libxml2.so.2 /usr/lib/*/libxslt.so.1 ./lib \
     && cp /lib/*/libssl.so.1.0.0 /lib/*/libcrypto.so.1.0.0 ./lib || cp /usr/lib/*/libssl.so.1.0.0 /usr/lib/*/libcrypto.so.1.0.0 ./lib \
     && if [ "$ICU_ENABLED" = true ]; then cp --no-dereference /usr/lib/*/libicudata.so* /usr/lib/*/libicuuc.so* /usr/lib/*/libicui18n.so* ./lib; fi \
     && if [ -n "$POSTGIS_VERSION" ]; then cp --no-dereference /lib/*/libjson-c.so* /usr/lib/*/libsqlite3.so* ./lib ; fi \

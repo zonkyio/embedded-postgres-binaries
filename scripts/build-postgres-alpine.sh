@@ -22,12 +22,12 @@ fi
 if [ -z "$IMG_NAME" ] ; then
   echo "Docker image parameter is required!" && exit 1;
 fi
-if [[ "$PG_VERSION" == 9.* ]] && [[ "$LITE_OPT" == true ]] ; then
+if echo "$PG_VERSION" | grep -q '^9\.' && [ "$LITE_OPT" = true ] ; then
   echo "Lite option is supported only for PostgreSQL 10 or later!" && exit 1;
 fi
 
-E2FS_ENABLED=$([[ ! "$PG_VERSION" == 9.3.* ]] && echo true || echo false);
-ICU_ENABLED=$([[ ! "$PG_VERSION" == 9.* ]] && [[ ! "$LITE_OPT" == true ]] && echo true || echo false);
+E2FS_ENABLED=$(echo "$PG_VERSION" | grep -qv '^9\.[0-3]\.' && echo true || echo false);
+ICU_ENABLED=$(echo "$PG_VERSION" | grep -qv '^9\.' && [ "$LITE_OPT" != true ] && echo true || echo false);
 
 TRG_DIR=$PWD/bundle
 mkdir -p $TRG_DIR

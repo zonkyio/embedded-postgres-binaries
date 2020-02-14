@@ -9,12 +9,12 @@ notifications:
     on_failure: change
 env:
   global:
-    - PG12_VERSION=12.1
-    - PG11_VERSION=11.6
-    - PG10_VERSION=10.11
-    - PG96_VERSION=9.6.16
-    - PG95_VERSION=9.5.20
-    - PG94_VERSION=9.4.25
+    - PG12_VERSION=12.2
+    - PG11_VERSION=11.7
+    - PG10_VERSION=10.12
+    - PG96_VERSION=9.6.17
+    - PG95_VERSION=9.5.21
+    - PG94_VERSION=9.4.26
 install: skip
 jobs:
   include:

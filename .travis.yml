@@ -9,11 +9,11 @@ notifications:
     on_failure: change
 env:
   global:
-    - PG12_VERSION=12.2
-    - PG11_VERSION=11.7
-    - PG10_VERSION=10.12
-    - PG96_VERSION=9.6.17
-    - PG95_VERSION=9.5.21
+    - PG12_VERSION=12.3
+    - PG11_VERSION=11.8
+    - PG10_VERSION=10.13
+    - PG96_VERSION=9.6.18
+    - PG95_VERSION=9.5.22
     - PG94_VERSION=9.4.26
 install: skip
 jobs:
@@ -23,8 +23,8 @@ jobs:
       language: bash
       os: windows
       install: &windows_install
-        - wget https://tukaani.org/xz/xz-5.2.4-windows.zip
-        - unzip -j ./xz-5.2.4-windows.zip 'bin_x86-64/*' -d /usr/bin/
+        - wget https://tukaani.org/xz/xz-5.2.5-windows.zip
+        - unzip -j ./xz-5.2.5-windows.zip 'bin_x86-64/*' -d /usr/bin/
         - choco install jdk8 -params 'installdir=c:\\jdk8'
         - choco install postgresql10 --params '/Password:test'
         - export JAVA_HOME=/c/jdk8

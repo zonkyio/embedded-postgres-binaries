@@ -9,12 +9,11 @@ notifications:
     on_failure: change
 env:
   global:
-    - PG12_VERSION=12.2
-    - PG11_VERSION=11.7
-    - PG10_VERSION=10.12
-    - PG96_VERSION=9.6.17
-    - PG95_VERSION=9.5.21
-    - PG94_VERSION=9.4.26
+    - PG12_VERSION=12.3
+    - PG11_VERSION=11.8
+    - PG10_VERSION=10.13
+    - PG96_VERSION=9.6.18
+    - PG95_VERSION=9.5.22
 install: skip
 jobs:
   include:
@@ -147,28 +146,4 @@ jobs:
     - name: amd64DebianJar
       os: linux
       env: VERSION=${PG95_VERSION} PG_VERSION=$PG95_VERSION
-      script: ./gradlew :custom-debian-platform:testCustomDebianJar -Pversion=$VERSION -PpgVersion=$PG_VERSION -ParchName=amd64
-
-    - stage: test [PG94]
-      name: amd64WindowsJar
-      language: bash
-      os: windows
-      install: *windows_install
-      env: VERSION=${PG94_VERSION} PG_VERSION=$PG94_VERSION
-      script: ./gradlew :repacked-platforms:testAmd64WindowsJar -Pversion=$VERSION -PpgVersion=$PG_VERSION
-    - name: amd64DarwinJar
-      os: osx
-      env: VERSION=${PG94_VERSION} PG_VERSION=$PG94_VERSION
-      script: ./gradlew :repacked-platforms:testAmd64DarwinJar -Pversion=$VERSION -PpgVersion=$PG_VERSION
-    - name: amd64LinuxJar
-      os: linux
-      env: VERSION=${PG94_VERSION} PG_VERSION=$PG94_VERSION
-      script: ./gradlew :repacked-platforms:testAmd64LinuxJar -Pversion=$VERSION -PpgVersion=$PG_VERSION
-    - name: amd64AlpineJar
-      os: linux
-      env: VERSION=${PG94_VERSION} PG_VERSION=$PG94_VERSION
-      script: ./gradlew :alpine-platforms:testAmd64AlpineJar -Pversion=$VERSION -PpgVersion=$PG_VERSION
-    - name: amd64DebianJar
-      os: linux
-      env: VERSION=${PG94_VERSION} PG_VERSION=$PG94_VERSION
       script: ./gradlew :custom-debian-platform:testCustomDebianJar -Pversion=$VERSION -PpgVersion=$PG_VERSION -ParchName=amd64

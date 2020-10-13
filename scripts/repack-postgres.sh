@@ -78,7 +78,8 @@ if [ "$PLATFORM_NAME" = "darwin" ] ; then
 
   tar -cJvf $TRG_DIR/postgres-darwin-$NORM_ARCH_NAME.txz \
     share/postgresql \
-    $([ -f lib/libiconv.2.dylib ] && echo lib/libiconv.2.dylib || echo lib/libicudata*.dylib lib/libicui18n*.dylib lib/libicuuc*.dylib) \
+    $([ -f lib/libiconv.2.dylib ] && echo lib/libiconv.2.dylib || echo ) \
+    $([ -f lib/libicudata.dylib ] && echo lib/libicudata*.dylib lib/libicui18n*.dylib lib/libicuuc*.dylib || echo ) \
     lib/libpq*.dylib \
     lib/libuuid*.dylib \
     lib/libxml2*.dylib \

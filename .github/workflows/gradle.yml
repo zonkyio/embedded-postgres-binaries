@@ -1,0 +1,79 @@
+name: Checks
+on: [push, pull_request]
+jobs:
+  linux:
+    name: PostgreSQL ${{ matrix.postgres }} (Linux)
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        postgres: [13.1, 12.5, 11.10, 10.15, 9.6.20, 9.5.24]
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v1
+      - name: Set up JDK
+        uses: actions/setup-java@v1
+        with:
+          java-version: 10
+      - name: Test PostgreSQL bundle
+        if: ${{ !(startsWith(matrix.postgres, '10.') || startsWith(matrix.postgres, '9.')) }}
+        run: ./gradlew :debian-platforms:testAmd64DebianJar -Pversion=${{ matrix.postgres }}-TEST -PpgVersion=${{ matrix.postgres }}
+      - name: Test PostgreSQL bundle (repacked)
+        if: ${{ startsWith(matrix.postgres, '10.') || startsWith(matrix.postgres, '9.') }}
+        run: ./gradlew :repacked-platforms:testAmd64LinuxJar -Pversion=${{ matrix.postgres }}-TEST -PpgVersion=${{ matrix.postgres }}
+      - name: Test PostgreSQL bundle (compiled)
+        if: ${{ startsWith(matrix.postgres, '10.') || startsWith(matrix.postgres, '9.') }}
+        run: ./gradlew :custom-debian-platform:testCustomDebianJar -Pversion=${{ matrix.postgres }}-TEST -PpgVersion=${{ matrix.postgres }} -ParchName=amd64
+  alpine-linux:
+    name: PostgreSQL ${{ matrix.postgres }} (Alpine Linux)
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        postgres: [13.1, 12.5, 11.10, 10.15, 9.6.20, 9.5.24]
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v1
+      - name: Set up JDK
+        uses: actions/setup-java@v1
+        with:
+          java-version: 10
+      - name: Test PostgreSQL bundle
+        run: ./gradlew :alpine-platforms:testAmd64AlpineJar -Pversion=${{ matrix.postgres }}-TEST -PpgVersion=${{ matrix.postgres }}
+      - name: Test PostgreSQL bundle (lite)
+        if: ${{ !(startsWith(matrix.postgres, '9.')) }}
+        run: ./gradlew :alpine-lite-platforms:testAmd64AlpineLiteJar -Pversion=${{ matrix.postgres }}-TEST -PpgVersion=${{ matrix.postgres }}
+  macos:
+    name: PostgreSQL ${{ matrix.postgres }} (MacOS)
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        postgres: [13.1, 12.5, 11.10, 10.15, 9.6.20]
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v1
+      - name: Set up JDK
+        uses: actions/setup-java@v1
+        with:
+          java-version: 10
+      - name: Test PostgreSQL bundle
+        run: ./gradlew :repacked-platforms:testAmd64DarwinJar -Pversion=${{ matrix.postgres }}-TEST -PpgVersion=${{ matrix.postgres }}
+  windows:
+    name: PostgreSQL ${{ matrix.postgres }} (Windows)
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        postgres: [13.1, 12.5, 11.10, 10.15, 9.6.20, 9.5.24]
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v1
+      - name: Set up JDK
+        uses: actions/setup-java@v1
+        with:
+          java-version: 10
+      - name: Install GNU Wget
+        run: choco install wget
+      - name: Update system paths
+        run: echo $PGBIN >> $GITHUB_PATH
+        shell: bash
+      - name: Test PostgreSQL bundle
+        run: ./gradlew :repacked-platforms:testAmd64WindowsJar -Pversion=${{ matrix.postgres }}-TEST -PpgVersion=${{ matrix.postgres }}
+        shell: bash

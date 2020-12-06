@@ -32,8 +32,14 @@ jobs:
         - export GRADLE_OPTS=-Dorg.gradle.daemon=false
       env: VERSION=${PG13_VERSION}.0 PG_VERSION=$PG13_VERSION
       script: ./gradlew :repacked-platforms:testAmd64WindowsJar -Pversion=$VERSION -PpgVersion=$PG_VERSION
-    - name: amd64DarwinJar
+    - name: amd64DarwinJar (Catalina)
       os: osx
+      osx_image: xcode12.2
+      env: VERSION=${PG13_VERSION}.0 PG_VERSION=$PG13_VERSION
+      script: ./gradlew :repacked-platforms:testAmd64DarwinJar -Pversion=$VERSION -PpgVersion=$PG_VERSION
+    - name: amd64DarwinJar (High Sierra)
+      os: osx
+      osx_image: xcode9.4
       env: VERSION=${PG13_VERSION}.0 PG_VERSION=$PG13_VERSION
       script: ./gradlew :repacked-platforms:testAmd64DarwinJar -Pversion=$VERSION -PpgVersion=$PG_VERSION
     - name: amd64AlpineJar
@@ -56,8 +62,14 @@ jobs:
       install: *windows_install
       env: VERSION=${PG12_VERSION}.0 PG_VERSION=$PG12_VERSION
       script: ./gradlew :repacked-platforms:testAmd64WindowsJar -Pversion=$VERSION -PpgVersion=$PG_VERSION
-    - name: amd64DarwinJar
+    - name: amd64DarwinJar (Catalina)
       os: osx
+      osx_image: xcode12.2
+      env: VERSION=${PG12_VERSION}.0 PG_VERSION=$PG12_VERSION
+      script: ./gradlew :repacked-platforms:testAmd64DarwinJar -Pversion=$VERSION -PpgVersion=$PG_VERSION
+    - name: amd64DarwinJar (High Sierra)
+      os: osx
+      osx_image: xcode9.4
       env: VERSION=${PG12_VERSION}.0 PG_VERSION=$PG12_VERSION
       script: ./gradlew :repacked-platforms:testAmd64DarwinJar -Pversion=$VERSION -PpgVersion=$PG_VERSION
     - name: amd64AlpineJar
@@ -80,8 +92,14 @@ jobs:
       install: *windows_install
       env: VERSION=${PG11_VERSION}.0 PG_VERSION=$PG11_VERSION
       script: ./gradlew :repacked-platforms:testAmd64WindowsJar -Pversion=$VERSION -PpgVersion=$PG_VERSION
-    - name: amd64DarwinJar
+    - name: amd64DarwinJar (Catalina)
       os: osx
+      osx_image: xcode12.2
+      env: VERSION=${PG11_VERSION}.0 PG_VERSION=$PG11_VERSION
+      script: ./gradlew :repacked-platforms:testAmd64DarwinJar -Pversion=$VERSION -PpgVersion=$PG_VERSION
+    - name: amd64DarwinJar (High Sierra)
+      os: osx
+      osx_image: xcode9.4
       env: VERSION=${PG11_VERSION}.0 PG_VERSION=$PG11_VERSION
       script: ./gradlew :repacked-platforms:testAmd64DarwinJar -Pversion=$VERSION -PpgVersion=$PG_VERSION
     - name: amd64AlpineJar
@@ -104,8 +122,14 @@ jobs:
       install: *windows_install
       env: VERSION=${PG10_VERSION}.0 PG_VERSION=$PG10_VERSION
       script: ./gradlew :repacked-platforms:testAmd64WindowsJar -Pversion=$VERSION -PpgVersion=$PG_VERSION
-    - name: amd64DarwinJar
+    - name: amd64DarwinJar (Catalina)
       os: osx
+      osx_image: xcode12.2
+      env: VERSION=${PG10_VERSION}.0 PG_VERSION=$PG10_VERSION
+      script: ./gradlew :repacked-platforms:testAmd64DarwinJar -Pversion=$VERSION -PpgVersion=$PG_VERSION
+    - name: amd64DarwinJar (High Sierra)
+      os: osx
+      osx_image: xcode9.4
       env: VERSION=${PG10_VERSION}.0 PG_VERSION=$PG10_VERSION
       script: ./gradlew :repacked-platforms:testAmd64DarwinJar -Pversion=$VERSION -PpgVersion=$PG_VERSION
     - name: amd64LinuxJar
@@ -132,8 +156,14 @@ jobs:
       install: *windows_install
       env: VERSION=${PG96_VERSION} PG_VERSION=$PG96_VERSION
       script: ./gradlew :repacked-platforms:testAmd64WindowsJar -Pversion=$VERSION -PpgVersion=$PG_VERSION
-    - name: amd64DarwinJar
+    - name: amd64DarwinJar (Catalina)
       os: osx
+      osx_image: xcode12.2
+      env: VERSION=${PG96_VERSION} PG_VERSION=$PG96_VERSION
+      script: ./gradlew :repacked-platforms:testAmd64DarwinJar -Pversion=$VERSION -PpgVersion=$PG_VERSION
+    - name: amd64DarwinJar (High Sierra)
+      os: osx
+      osx_image: xcode9.4
       env: VERSION=${PG96_VERSION} PG_VERSION=$PG96_VERSION
       script: ./gradlew :repacked-platforms:testAmd64DarwinJar -Pversion=$VERSION -PpgVersion=$PG_VERSION
     - name: amd64LinuxJar
@@ -156,8 +186,9 @@ jobs:
       install: *windows_install
       env: VERSION=${PG95_VERSION} PG_VERSION=$PG95_VERSION
       script: ./gradlew :repacked-platforms:testAmd64WindowsJar -Pversion=$VERSION -PpgVersion=$PG_VERSION
-    - name: amd64DarwinJar
+    - name: amd64DarwinJar (High Sierra)
       os: osx
+      osx_image: xcode9.4
       env: VERSION=${PG95_VERSION} PG_VERSION=$PG95_VERSION
       script: ./gradlew :repacked-platforms:testAmd64DarwinJar -Pversion=$VERSION -PpgVersion=$PG_VERSION
     - name: amd64LinuxJar

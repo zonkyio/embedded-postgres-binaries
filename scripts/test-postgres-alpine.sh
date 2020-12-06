@@ -60,4 +60,6 @@ $DOCKER_OPTS $IMG_NAME /bin/sh -ex -c 'echo "Starting building postgres binaries
     && test $(psql -qAtX -h localhost -p 65432 -U postgres -d postgres -c "CREATE EXTENSION pgcrypto; SELECT digest('\''test'\'', '\''sha256'\'');") = "\x9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08" \
     && echo $(psql -qAtX -h localhost -p 65432 -U postgres -d postgres -c '\''CREATE EXTENSION "uuid-ossp"; SELECT uuid_generate_v4();'\'') | grep -E '\''^[^-]{8}-[^-]{4}-[^-]{4}-[^-]{4}-[^-]{12}$'\'' \
     \
+    && if echo "$PG_VERSION" | grep -qvE '\''^(10|9)\.'\'' ; then test $(psql -qAtX -h localhost -p 65432 -U postgres -d postgres -c '\''SET jit_above_cost = 10; SELECT SUM(relpages) FROM pg_class;'\'') -gt 0 ; fi \
+    \
     && if [ -n "$POSTGIS_VERSION" ]; then test $(psql -qAtX -h localhost -p 65432 -U postgres -d postgres -c "CREATE EXTENSION postgis; SELECT PostGIS_Lib_Version();") = $POSTGIS_VERSION ; fi'

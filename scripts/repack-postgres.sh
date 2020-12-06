@@ -87,7 +87,7 @@ if [ "$PLATFORM_NAME" = "darwin" ] ; then
     lib/libssl*.dylib \
     lib/libcrypto*.dylib \
     lib/libedit*.dylib \
-    lib/postgresql/*.so \
+    $([ -f lib/postgresql/llvmjit_types.bc ] && echo lib/postgresql/*.so lib/postgresql/*.bc || echo lib/postgresql/*.so) \
     bin/initdb \
     bin/pg_ctl \
     bin/postgres

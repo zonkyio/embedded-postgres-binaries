@@ -1,14 +1,10 @@
 import org.gradle.internal.os.OperatingSystem
 
 plugins {
-    id "com.jfrog.bintray" version "1.7.3"
-    id "de.undercouch.download" version "3.4.3"
+    id "de.undercouch.download" version "4.1.1"
 }
 
 ext {
-    bintrayUser = project.findProperty('bintray.user')
-    bintrayApiKey = project.findProperty('bintray.apiKey')
-    signingPassword = project.findProperty('signing.password')
     ossrhUsername = project.findProperty('ossrh.username')
     ossrhPassword = project.findProperty('ossrh.password')
 
@@ -26,7 +22,7 @@ ext {
 allprojects {
     apply plugin: 'java'
     apply plugin: 'maven-publish'
-    apply plugin: 'com.jfrog.bintray'
+    apply plugin: 'signing'
 
     group 'io.zonky.test.postgres'
     version += postgisVersionParam ? "-postgis-$postgisVersionParam" : ''
@@ -34,7 +30,6 @@ allprojects {
     sourceCompatibility = 1.6
 
     repositories {
-        jcenter()
         mavenCentral()
     }
 
@@ -62,6 +57,7 @@ task validateInputs {
 }
 
 task downloadQemuExecutables(type: Download, dependsOn: validateInputs) {
+    onlyIfModified true
     onlyIf { !qemuPathParam && OperatingSystem.current().isLinux() && OperatingSystem.current().getArch() == 'amd64' }
     src(['arm', 'aarch64', 'ppc64le'].collect { arch ->
         "https://github.com/multiarch/qemu-user-static/releases/download/v2.12.0/qemu-$arch-static"
@@ -157,7 +153,7 @@ project(':repacked-platforms') {
 
                 inputs.file("$rootDir/scripts/test-postgres-${platform.name}.sh")
 
-                workingDir tasks.getByName("${platform.arch}${platform.name.capitalize()}Jar").destinationDir
+                workingDir tasks.getByName("${platform.arch}${platform.name.capitalize()}Jar").destinationDirectory
 
                 if (platform.name == 'linux') {
                     commandLine 'sh', "$rootDir/scripts/test-postgres-${platform.name}.sh",
@@ -218,7 +214,7 @@ project(':debian-platforms') {
 
                 inputs.file("$rootDir/scripts/test-postgres-linux.sh")
 
-                workingDir tasks.getByName("${platform.arch}DebianJar").destinationDir
+                workingDir tasks.getByName("${platform.arch}DebianJar").destinationDirectory
                 commandLine 'sh', "$rootDir/scripts/test-postgres-linux.sh",
                         '-j', "embedded-postgres-binaries-linux-${platform.arch}-${version}.jar",
                         '-z', "postgres-linux-${normalizeArchName(platform.arch)}.txz",
@@ -273,7 +269,7 @@ alpineVariants.each { variant ->
 
                     inputs.file("$rootDir/scripts/test-postgres-alpine.sh")
 
-                    workingDir tasks.getByName("${platform.arch}Alpine${variant.name.capitalize()}Jar").destinationDir
+                    workingDir tasks.getByName("${platform.arch}Alpine${variant.name.capitalize()}Jar").destinationDirectory
                     commandLine 'sh', "$rootDir/scripts/test-postgres-alpine.sh",
                             '-j', "embedded-postgres-binaries-linux-${platform.arch}-alpine${variant.name ? '-' + variant.name : ''}-${version}.jar",
                             '-z', "postgres-linux-${normalizeArchName(platform.arch)}-alpine_linux.txz",
@@ -339,7 +335,7 @@ project(':custom-debian-platform') {
 
             inputs.file("$rootDir/scripts/test-postgres-linux.sh")
 
-            workingDir customDebianJar.destinationDir
+            workingDir customDebianJar.destinationDirectory
             commandLine 'sh', "$rootDir/scripts/test-postgres-linux.sh",
                     '-j', "embedded-postgres-binaries-linux-${archName}-${version}.jar",
                     '-z', "postgres-linux-${normalizeArchName(archName)}.txz",
@@ -405,7 +401,7 @@ alpineVariants.each { variant ->
 
                 inputs.file("$rootDir/scripts/test-postgres-alpine.sh")
 
-                workingDir tasks.getByName("customAlpine${variant.name.capitalize()}Jar").destinationDir
+                workingDir tasks.getByName("customAlpine${variant.name.capitalize()}Jar").destinationDirectory
                 commandLine 'sh', "$rootDir/scripts/test-postgres-alpine.sh",
                         '-j', "embedded-postgres-binaries-linux-${archName}-alpine${variant.name ? '-' + variant.name : ''}-${version}.jar",
                         '-z', "postgres-linux-${normalizeArchName(archName)}-alpine_linux.txz",
@@ -446,6 +442,17 @@ subprojects {
 }
 
 publishing {
+    repositories {
+        maven {
+            def releasesRepoUrl  = "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
+            def snapshotsRepoUrl = "https://oss.sonatype.org/content/repositories/snapshots/"
+            url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
+            credentials {
+                username ossrhUsername
+                password ossrhPassword
+            }
+        }
+    }
     publications {
         if (!distNameParam && !archNameParam && !dockerImageParam) {
             bom(MavenPublication) {
@@ -485,28 +492,15 @@ publishing {
     }
 }
 
-allprojects {
-    bintray {
-        user = bintrayUser
-        key = bintrayApiKey
-        publications = project.publishing.publications.findAll().collect { it.name }
-        pkg {
-            userOrg = 'zonky'
-            repo = 'maven'
-            name = 'embedded-postgres-binaries'
-            version {
-                name = project.version
-                gpg {
-                    sign = true
-                    passphrase = signingPassword
-                }
-                mavenCentralSync {
-                    user = ossrhUsername
-                    password = ossrhPassword
-                }
-            }
-        }
+signing {
+    required { gradle.taskGraph.hasTask("publish") }
+
+    publishing.publications.all { publication ->
+        sign publication
     }
+}
+
+allprojects {
 
     task install(group: 'publishing') {}
 
@@ -519,7 +513,7 @@ allprojects {
     }
 
     task uploadArchives(group: 'publishing') {
-        dependsOn bintrayUpload
+        dependsOn publish
     }
 
     tasks.whenTaskAdded { task ->
@@ -554,10 +548,6 @@ def configurePom(pom, artifact, desc) {
             }
 
             developers {
-                developer {
-                    name 'Roman Pichlik'
-                    email 'roman.pichlik@zonky.cz'
-                }
                 developer {
                     name 'Tomas Vanek'
                     email 'tomas.vanek@zonky.cz'

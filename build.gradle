@@ -425,17 +425,6 @@ subprojects {
     }
 
     publishing {
-        repositories {
-            maven {
-                def releasesRepoUrl  = "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
-                def snapshotsRepoUrl = "https://oss.sonatype.org/content/repositories/snapshots/"
-                url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
-                credentials {
-                    username ossrhUsername
-                    password ossrhPassword
-                }
-            }
-        }
         publications {
             configurations.bundles.artifacts.all { archive ->
                 def publicationName = archive.archiveTask.name - 'Jar'
@@ -453,17 +442,6 @@ subprojects {
 }
 
 publishing {
-    repositories {
-        maven {
-            def releasesRepoUrl  = "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
-            def snapshotsRepoUrl = "https://oss.sonatype.org/content/repositories/snapshots/"
-            url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
-            credentials {
-                username ossrhUsername
-                password ossrhPassword
-            }
-        }
-    }
     publications {
         if (!distNameParam && !archNameParam && !dockerImageParam) {
             bom(MavenPublication) {
@@ -503,15 +481,29 @@ publishing {
     }
 }
 
-signing {
-    required { gradle.taskGraph.hasTask("publish") }
-
-    publishing.publications.all { publication ->
-        sign publication
-    }
-}
-
 allprojects {
+
+    publishing {
+        repositories {
+            maven {
+                def releasesRepoUrl = "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
+                def snapshotsRepoUrl = "https://oss.sonatype.org/content/repositories/snapshots/"
+                url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
+                credentials {
+                    username ossrhUsername
+                    password ossrhPassword
+                }
+            }
+        }
+    }
+
+    signing {
+        required { gradle.taskGraph.hasTask("publish") }
+
+        publishing.publications.all { publication ->
+            sign publication
+        }
+    }
 
     task install(group: 'publishing') {}
 

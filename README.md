@@ -25,7 +25,7 @@ First, you have to add any of the [available dependencies](https://mvnrepository
 <dependency>
     <groupId>io.zonky.test.postgres</groupId>
     <artifactId>embedded-postgres-binaries-linux-amd64</artifactId>
-    <version>11.4.0</version>
+    <version>11.11.0</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -72,7 +72,7 @@ The version of the postgres binaries can be managed by importing `embedded-postg
         <dependency>
             <groupId>io.zonky.test.postgres</groupId>
             <artifactId>embedded-postgres-binaries-bom</artifactId>
-            <version>11.1.0</version>
+            <version>13.2.0</version>
             <type>pom</type>
             <scope>import</scope>
         </dependency>

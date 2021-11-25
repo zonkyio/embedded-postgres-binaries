@@ -6,7 +6,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        postgres: [13.4, 12.8, 11.13, 10.18, 9.6.23]
+        postgres: [13.5, 12.9, 11.14, 10.19, 9.6.24]
     steps:
       - name: Checkout project
         uses: actions/checkout@v1
@@ -28,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        postgres: [13.4, 12.8, 11.13, 10.18, 9.6.23]
+        postgres: [13.5, 12.9, 11.14, 10.19, 9.6.24]
     steps:
       - name: Checkout project
         uses: actions/checkout@v1
@@ -46,7 +46,7 @@ jobs:
     runs-on: macos-latest
     strategy:
       matrix:
-        postgres: [13.4, 12.8, 11.13, 10.18, 9.6.23]
+        postgres: [13.5, 12.9, 11.14, 10.19, 9.6.24]
     steps:
       - name: Checkout project
         uses: actions/checkout@v1
@@ -61,7 +61,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        postgres: [13.4, 12.8, 11.13, 10.18, 9.6.23]
+        postgres: [13.5, 12.9, 11.14, 10.19, 9.6.24]
     steps:
       - name: Checkout project
         uses: actions/checkout@v1

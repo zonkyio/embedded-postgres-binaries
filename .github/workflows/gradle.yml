@@ -55,6 +55,7 @@ jobs:
         with:
           java-version: 10
       - name: Test PostgreSQL bundle
+        timeout-minutes: 10
         run: ./gradlew :repacked-platforms:testAmd64DarwinJar -Pversion=${{ matrix.postgres }}-TEST -PpgVersion=${{ matrix.postgres }}
   windows:
     name: PostgreSQL ${{ matrix.postgres }} (Windows)

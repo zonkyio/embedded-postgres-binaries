@@ -61,6 +61,8 @@ $DOCKER_OPTS $IMG_NAME /bin/bash -ex -c 'echo "Starting building postgres binari
         python3-dev \
         tcl-dev \
         \
+    && sudo sed -i -e "s=^mozilla/DST_Root_CA_X3.crt=!mozilla/DST_Root_CA_X3.crt=" /etc/ca-certificates.conf \
+    && sudo update-ca-certificates \
     && wget -O patchelf.tar.gz "https://nixos.org/releases/patchelf/patchelf-0.9/patchelf-0.9.tar.gz" \
     && mkdir -p /usr/src/patchelf \
     && tar -xf patchelf.tar.gz -C /usr/src/patchelf --strip-components 1 \

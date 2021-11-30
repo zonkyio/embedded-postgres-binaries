@@ -76,10 +76,19 @@ cd $PKG_DIR/pgsql
 
 if [ "$PLATFORM_NAME" = "darwin" ] ; then
 
+  if [ "$PG_VERSION" = "13.5-1" ] ; then
+    mkdir -p ./opt/local/lib
+    cp $PKG_DIR/../../../../../libs/libncursesw.6.dylib ./lib/
+    ln -s ../../../lib/libncursesw.6.dylib ./opt/local/lib/libncurses.6.dylib
+  fi
+
   tar -cJvf $TRG_DIR/postgres-darwin-$NORM_ARCH_NAME.txz \
     share/postgresql \
     $([ -f lib/libiconv.2.dylib ] && echo lib/libiconv.2.dylib || echo ) \
     $([ -f lib/libicudata.dylib ] && echo lib/libicudata*.dylib lib/libicui18n*.dylib lib/libicuuc*.dylib || echo ) \
+    $([ -f lib/libncursesw.6.dylib ] && echo lib/libncurses*.dylib || echo ) \
+    $([ -f lib/liblz4.dylib ] && echo lib/liblz*.dylib || echo ) \
+    $([ -f opt/local/lib/libncurses.6.dylib ] && echo opt || echo ) \
     lib/libz*.dylib \
     lib/libpq*.dylib \
     lib/libuuid*.dylib \

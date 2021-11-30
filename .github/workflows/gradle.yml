@@ -7,7 +7,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        postgres: [ 13.5, 12.9, 11.14, 10.19, 9.6.24 ]
+        postgres: [ 14.1, 13.5, 12.9, 11.14, 10.19, 9.6.24 ]
     steps:
       - name: Checkout project
         uses: actions/checkout@v1
@@ -33,7 +33,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        postgres: [ 13.5, 12.9, 11.14, 10.19, 9.6.24 ]
+        postgres: [ 14.1, 13.5, 12.9, 11.14, 10.19, 9.6.24 ]
     steps:
       - name: Checkout project
         uses: actions/checkout@v1
@@ -54,7 +54,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        postgres: [ 13.5, 12.9, 11.14, 10.19, 9.6.24 ]
+        postgres: [ 14.1, 13.5, 12.9, 11.14, 10.19, 9.6.24 ]
     steps:
       - name: Checkout project
         uses: actions/checkout@v1
@@ -71,7 +71,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        postgres: [ 13.5, 12.9, 11.14, 10.19, 9.6.24 ]
+        postgres: [ 14.1, 13.5, 12.9, 11.14, 10.19, 9.6.24 ]
     steps:
       - name: Checkout project
         uses: actions/checkout@v1

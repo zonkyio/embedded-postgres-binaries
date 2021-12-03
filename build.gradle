@@ -86,7 +86,7 @@ if (pgMajorVersionParam < 11) {
 }
 
 def debianPlatforms = [
-        ['arch':'arm32v6', 'image':'resin/rpi-raspbian:jessie'],
+//        ['arch':'arm32v6', 'image':'resin/rpi-raspbian:jessie'],
         ['arch':'arm32v7'],
         ['arch':'arm64v8'],
         ['arch':'ppc64le']

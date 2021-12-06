@@ -62,6 +62,37 @@ public SingleInstancePostgresRule pg = EmbeddedPostgresRules.singleInstance()
         .customize(builder -> builder.setPgBinaryResolver(new CustomPostgresBinaryResolver()));
 ```
 
+## Use with [pg-embedded](https://pg-embedded.softwareforge.de/)
+
+`pg-embedded` is a Java 11+ library that uses zonky.io Postgres binaries to spin up embedded PostgreSQL instances. 
+
+It can be used [with any build tool](https://pg-embedded.softwareforge.de/4.0/dependency-info.html) and supports automatic binary selection through properties or included builders:
+
+```java
+try (DatabaseManager manager = DatabaseManager.multiDatabases()
+    .withInstancePreparer(b -> b.setServerVersion("14"))
+    .build()
+    .start()) {
+    DatabaseInfo databaseInfo = manager.getDatabaseInfo();
+    // connected to PostgreSQL 14.x
+    try (Connection c = databaseInfo.asDataSource().getConnection();
+        Statement s = c.createStatement()) {
+        try (ResultSet rs = s.executeQuery("SELECT 1")) {
+            assertTrue(rs.next());
+            assertEquals(1, rs.getInt(1));
+            assertFalse(rs.next());
+        }
+    }
+}
+```
+
+`pg-embedded` supports JUnit 5:
+
+```java
+@RegisterExtension
+public static EmbeddedPgExtension multiDatabase = MultiDatabaseBuilder.instanceWithDefaults().build();
+```
+
 ## Postgres version
 
 The version of the postgres binaries can be managed by importing `embedded-postgres-binaries-bom` in a required version into your dependency management section.

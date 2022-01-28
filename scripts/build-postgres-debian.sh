@@ -141,6 +141,18 @@ $DOCKER_OPTS $IMG_NAME /bin/bash -ex -c 'echo "Starting building postgres binari
         && make install \
     ; fi \
     \
+    && wget https://github.com/timescale/timescaledb/archive/refs/tags/2.5.1.tar.gz \
+    && tar -xzf 2.5.1.tar.gz \
+    && cd timescaledb-2.5.1 \
+    && wget https://github.com/Kitware/CMake/releases/download/v3.22.1/cmake-3.22.1-linux-x86_64.sh \
+    && chmod +x ./cmake-3.22.1-linux-x86_64.sh \
+    && ./cmake-3.22.1-linux-x86_64.sh  --skip-license --prefix=/usr/local \
+    && export PATH=/usr/local/pg-build/bin:$PATH \
+    && ./bootstrap \
+    && cd ./build \
+    && make \
+    && make install \
+    \
     && cd /usr/local/pg-build \
     && cp /lib/*/libz.so.1 /lib/*/liblzma.so.5 /usr/lib/libossp-uuid.so.16 /usr/lib/*/libxml2.so.2 /usr/lib/*/libxslt.so.1 ./lib \
     && cp /lib/*/libssl.so.1.0.0 /lib/*/libcrypto.so.1.0.0 ./lib || cp /usr/lib/*/libssl.so.1.0.0 /usr/lib/*/libcrypto.so.1.0.0 ./lib \
@@ -155,3 +167,8 @@ $DOCKER_OPTS $IMG_NAME /bin/bash -ex -c 'echo "Starting building postgres binari
         bin/initdb \
         bin/pg_ctl \
         bin/postgres'
+
+
+
+
+      

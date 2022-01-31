@@ -1,5 +1,5 @@
 name: Checks
-on: [ push, pull_request ]
+on: [push, pull_request]
 jobs:
   linux:
     name: PostgreSQL ${{ matrix.postgres }} (Linux)
@@ -7,13 +7,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        postgres: [ 14.1, 13.5, 12.9, 11.14, 10.19, 9.6.24 ]
+        postgres: [14.1, 13.5, 12.9, 11.14, 10.19, 9.6.24]
     steps:
       - name: Checkout project
-        uses: actions/checkout@v1
+        uses: actions/checkout@v2
       - name: Set up JDK
-        uses: actions/setup-java@v1
+        uses: actions/setup-java@v2
         with:
+          distribution: 'zulu'
           java-version: 10
       - name: Test PostgreSQL bundle
         if: ${{ !(startsWith(matrix.postgres, '10.') || startsWith(matrix.postgres, '9.')) }}
@@ -33,13 +34,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        postgres: [ 14.1, 13.5, 12.9, 11.14, 10.19, 9.6.24 ]
+        postgres: [14.1, 13.5, 12.9, 11.14, 10.19, 9.6.24]
     steps:
       - name: Checkout project
-        uses: actions/checkout@v1
+        uses: actions/checkout@v2
       - name: Set up JDK
-        uses: actions/setup-java@v1
+        uses: actions/setup-java@v2
         with:
+          distribution: 'zulu'
           java-version: 10
       - name: Test PostgreSQL bundle
         run: ./gradlew :alpine-platforms:testAmd64AlpineJar -Pversion=${{ matrix.postgres }}-TEST -PpgVersion=${{ matrix.postgres }}
@@ -54,13 +56,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        postgres: [ 14.1, 13.5, 12.9, 11.14, 10.19, 9.6.24 ]
+        postgres: [14.1, 13.5, 12.9, 11.14, 10.19, 9.6.24]
     steps:
       - name: Checkout project
-        uses: actions/checkout@v1
+        uses: actions/checkout@v2
       - name: Set up JDK
-        uses: actions/setup-java@v1
+        uses: actions/setup-java@v2
         with:
+          distribution: 'zulu'
           java-version: 10
       - name: Test PostgreSQL bundle
         run: ./gradlew :repacked-platforms:testAmd64DarwinJar -Pversion=${{ matrix.postgres }}-TEST -PpgVersion=${{ matrix.postgres }}
@@ -71,13 +74,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        postgres: [ 14.1, 13.5, 12.9, 11.14, 10.19, 9.6.24 ]
+        postgres: [14.1, 13.5, 12.9, 11.14, 10.19, 9.6.24]
     steps:
       - name: Checkout project
-        uses: actions/checkout@v1
+        uses: actions/checkout@v2
       - name: Set up JDK
-        uses: actions/setup-java@v1
+        uses: actions/setup-java@v2
         with:
+          distribution: 'zulu'
           java-version: 10
       - name: Install GNU Wget
         run: choco install wget

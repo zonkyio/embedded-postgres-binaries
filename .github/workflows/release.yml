@@ -1,0 +1,354 @@
+name: Release
+on:
+  milestone:
+    types: [closed]
+jobs:
+  debian-arm32v7:
+    name: Debian - arm32v7
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          ref: master
+      - name: Set up JDK
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'zulu'
+          java-version: 10
+      - name: Set environment variables
+        env:
+          MILESTONE_VERSION: ${{ github.event.milestone.title }}
+        run: |
+          echo "RELEASE_VERSION=$MILESTONE_VERSION" >> $GITHUB_ENV
+          echo "POSTGRES_VERSION=${MILESTONE_VERSION%'.0'}" >> $GITHUB_ENV
+      - name: Register QEMU
+        run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
+      - name: Build Bundle
+        run: ./gradlew :debian-platforms:buildArm32v7DebianBundle -Pversion=$RELEASE_VERSION -PpgVersion=$POSTGRES_VERSION
+      - name: Upload bundle
+        uses: actions/upload-artifact@v2
+        with:
+          name: arm32v7DebianBundle
+          path: debian-platforms/build/tmp/buildArm32v7DebianBundle/bundle/postgres-linux-debian.txz
+  debian-arm64v8:
+    name: Debian - arm64v8
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          ref: master
+      - name: Set up JDK
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'zulu'
+          java-version: 10
+      - name: Set environment variables
+        env:
+          MILESTONE_VERSION: ${{ github.event.milestone.title }}
+        run: |
+          echo "RELEASE_VERSION=$MILESTONE_VERSION" >> $GITHUB_ENV
+          echo "POSTGRES_VERSION=${MILESTONE_VERSION%'.0'}" >> $GITHUB_ENV
+      - name: Register QEMU
+        run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
+      - name: Build Bundle
+        run: ./gradlew :debian-platforms:buildArm64v8DebianBundle -Pversion=$RELEASE_VERSION -PpgVersion=$POSTGRES_VERSION
+      - name: Upload bundle
+        uses: actions/upload-artifact@v2
+        with:
+          name: arm64v8DebianBundle
+          path: debian-platforms/build/tmp/buildArm64v8DebianBundle/bundle/postgres-linux-debian.txz
+  debian-ppc64le:
+    name: Debian - ppc64le
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          ref: master
+      - name: Set up JDK
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'zulu'
+          java-version: 10
+      - name: Set environment variables
+        env:
+          MILESTONE_VERSION: ${{ github.event.milestone.title }}
+        run: |
+          echo "RELEASE_VERSION=$MILESTONE_VERSION" >> $GITHUB_ENV
+          echo "POSTGRES_VERSION=${MILESTONE_VERSION%'.0'}" >> $GITHUB_ENV
+      - name: Register QEMU
+        run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
+      - name: Build Bundle
+        run: ./gradlew :debian-platforms:buildPpc64leDebianBundle -Pversion=$RELEASE_VERSION -PpgVersion=$POSTGRES_VERSION
+      - name: Upload bundle
+        uses: actions/upload-artifact@v2
+        with:
+          name: ppc64leDebianBundle
+          path: debian-platforms/build/tmp/buildPpc64leDebianBundle/bundle/postgres-linux-debian.txz
+  alpine-arm32v6:
+    name: Alpine - arm32v6
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          ref: master
+      - name: Set up JDK
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'zulu'
+          java-version: 10
+      - name: Set environment variables
+        env:
+          MILESTONE_VERSION: ${{ github.event.milestone.title }}
+        run: |
+          echo "RELEASE_VERSION=$MILESTONE_VERSION" >> $GITHUB_ENV
+          echo "POSTGRES_VERSION=${MILESTONE_VERSION%'.0'}" >> $GITHUB_ENV
+      - name: Register QEMU
+        run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
+      - name: Build Bundle
+        run: ./gradlew :alpine-platforms:buildArm32v6AlpineBundle -Pversion=$RELEASE_VERSION -PpgVersion=$POSTGRES_VERSION
+      - name: Upload bundle
+        uses: actions/upload-artifact@v2
+        with:
+          name: arm32v6AlpineBundle
+          path: alpine-platforms/build/tmp/buildArm32v6AlpineBundle/bundle/postgres-linux-alpine_linux.txz
+  alpine-arm64v8:
+    name: Alpine - arm64v8
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          ref: master
+      - name: Set up JDK
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'zulu'
+          java-version: 10
+      - name: Set environment variables
+        env:
+          MILESTONE_VERSION: ${{ github.event.milestone.title }}
+        run: |
+          echo "RELEASE_VERSION=$MILESTONE_VERSION" >> $GITHUB_ENV
+          echo "POSTGRES_VERSION=${MILESTONE_VERSION%'.0'}" >> $GITHUB_ENV
+      - name: Register QEMU
+        run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
+      - name: Build Bundle
+        run: ./gradlew :alpine-platforms:buildArm64v8AlpineBundle -Pversion=$RELEASE_VERSION -PpgVersion=$POSTGRES_VERSION
+      - name: Upload bundle
+        uses: actions/upload-artifact@v2
+        with:
+          name: arm64v8AlpineBundle
+          path: alpine-platforms/build/tmp/buildArm64v8AlpineBundle/bundle/postgres-linux-alpine_linux.txz
+  alpine-ppc64le:
+    name: Alpine - ppc64le
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          ref: master
+      - name: Set up JDK
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'zulu'
+          java-version: 10
+      - name: Set environment variables
+        env:
+          MILESTONE_VERSION: ${{ github.event.milestone.title }}
+        run: |
+          echo "RELEASE_VERSION=$MILESTONE_VERSION" >> $GITHUB_ENV
+          echo "POSTGRES_VERSION=${MILESTONE_VERSION%'.0'}" >> $GITHUB_ENV
+      - name: Register QEMU
+        run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
+      - name: Build Bundle
+        run: ./gradlew :alpine-platforms:buildPpc64leAlpineBundle -Pversion=$RELEASE_VERSION -PpgVersion=$POSTGRES_VERSION
+      - name: Upload bundle
+        uses: actions/upload-artifact@v2
+        with:
+          name: ppc64leAlpineBundle
+          path: alpine-platforms/build/tmp/buildPpc64leAlpineBundle/bundle/postgres-linux-alpine_linux.txz
+  alpine-lite-arm32v6:
+    name: Alpine - arm32v6 (Lite)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          ref: master
+      - name: Set up JDK
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'zulu'
+          java-version: 10
+      - name: Set environment variables
+        env:
+          MILESTONE_VERSION: ${{ github.event.milestone.title }}
+        run: |
+          echo "RELEASE_VERSION=$MILESTONE_VERSION" >> $GITHUB_ENV
+          echo "POSTGRES_VERSION=${MILESTONE_VERSION%'.0'}" >> $GITHUB_ENV
+      - name: Register QEMU
+        run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
+      - name: Build Bundle
+        run: ./gradlew :alpine-lite-platforms:buildArm32v6AlpineLiteBundle -Pversion=$RELEASE_VERSION -PpgVersion=$POSTGRES_VERSION
+      - name: Upload bundle
+        uses: actions/upload-artifact@v2
+        with:
+          name: arm32v6AlpineLiteBundle
+          path: alpine-lite-platforms/build/tmp/buildArm32v6AlpineLiteBundle/bundle/postgres-linux-alpine_linux.txz
+  alpine-lite-arm64v8:
+    name: Alpine - arm64v8 (Lite)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          ref: master
+      - name: Set up JDK
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'zulu'
+          java-version: 10
+      - name: Set environment variables
+        env:
+          MILESTONE_VERSION: ${{ github.event.milestone.title }}
+        run: |
+          echo "RELEASE_VERSION=$MILESTONE_VERSION" >> $GITHUB_ENV
+          echo "POSTGRES_VERSION=${MILESTONE_VERSION%'.0'}" >> $GITHUB_ENV
+      - name: Register QEMU
+        run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
+      - name: Build Bundle
+        run: ./gradlew :alpine-lite-platforms:buildArm64v8AlpineLiteBundle -Pversion=$RELEASE_VERSION -PpgVersion=$POSTGRES_VERSION
+      - name: Upload bundle
+        uses: actions/upload-artifact@v2
+        with:
+          name: arm64v8AlpineLiteBundle
+          path: alpine-lite-platforms/build/tmp/buildArm64v8AlpineLiteBundle/bundle/postgres-linux-alpine_linux.txz
+  alpine-lite-ppc64le:
+    name: Alpine - ppc64le (Lite)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          ref: master
+      - name: Set up JDK
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'zulu'
+          java-version: 10
+      - name: Set environment variables
+        env:
+          MILESTONE_VERSION: ${{ github.event.milestone.title }}
+        run: |
+          echo "RELEASE_VERSION=$MILESTONE_VERSION" >> $GITHUB_ENV
+          echo "POSTGRES_VERSION=${MILESTONE_VERSION%'.0'}" >> $GITHUB_ENV
+      - name: Register QEMU
+        run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
+      - name: Build Bundle
+        run: ./gradlew :alpine-lite-platforms:buildPpc64leAlpineLiteBundle -Pversion=$RELEASE_VERSION -PpgVersion=$POSTGRES_VERSION
+      - name: Upload bundle
+        uses: actions/upload-artifact@v2
+        with:
+          name: ppc64leAlpineLiteBundle
+          path: alpine-lite-platforms/build/tmp/buildPpc64leAlpineLiteBundle/bundle/postgres-linux-alpine_linux.txz
+  release:
+    name: Collect artifacts & Release ${{ github.event.milestone.title }}
+    needs: [debian-arm32v7, debian-arm64v8, debian-ppc64le, alpine-arm32v6, alpine-arm64v8, alpine-ppc64le, alpine-lite-arm32v6, alpine-lite-arm64v8, alpine-lite-ppc64le]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          ref: master
+      - name: Set up Git
+        run: |
+          git config user.name "Zonky Bot"
+          git config user.email "bot@zonky.com"
+      - name: Set up JDK
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'zulu'
+          java-version: 10
+      - name: Set environment variables
+        env:
+          MILESTONE_VERSION: ${{ github.event.milestone.title }}
+        run: |
+          echo "RELEASE_VERSION=$MILESTONE_VERSION" >> $GITHUB_ENV
+          echo "POSTGRES_VERSION=${MILESTONE_VERSION%'.0'}" >> $GITHUB_ENV
+      - name: Download bundle - arm32v7Debian
+        uses: actions/download-artifact@v2
+        with:
+          name: arm32v7DebianBundle
+          path: debian-platforms/build/tmp/buildArm32v7DebianBundle/bundle
+      - name: Download bundle - arm64v8Debian
+        uses: actions/download-artifact@v2
+        with:
+          name: arm64v8DebianBundle
+          path: debian-platforms/build/tmp/buildArm64v8DebianBundle/bundle
+      - name: Download bundle - ppc64leDebian
+        uses: actions/download-artifact@v2
+        with:
+          name: ppc64leDebianBundle
+          path: debian-platforms/build/tmp/buildPpc64leDebianBundle/bundle
+      - name: Download bundle - arm32v6Alpine
+        uses: actions/download-artifact@v2
+        with:
+          name: arm32v6AlpineBundle
+          path: alpine-platforms/build/tmp/buildArm32v6AlpineBundle/bundle
+      - name: Download bundle - arm64v8Alpine
+        uses: actions/download-artifact@v2
+        with:
+          name: arm64v8AlpineBundle
+          path: alpine-platforms/build/tmp/buildArm64v8AlpineBundle/bundle
+      - name: Download bundle - ppc64leAlpine
+        uses: actions/download-artifact@v2
+        with:
+          name: ppc64leAlpineBundle
+          path: alpine-platforms/build/tmp/buildPpc64leAlpineBundle/bundle
+      - name: Download bundle - arm32v6AlpineLite
+        uses: actions/download-artifact@v2
+        with:
+          name: arm32v6AlpineLiteBundle
+          path: alpine-lite-platforms/build/tmp/buildArm32v6AlpineLiteBundle/bundle
+      - name: Download bundle - arm64v8AlpineLite
+        uses: actions/download-artifact@v2
+        with:
+          name: arm64v8AlpineLiteBundle
+          path: alpine-lite-platforms/build/tmp/buildArm64v8AlpineLiteBundle/bundle
+      - name: Download bundle - ppc64leAlpineLite
+        uses: actions/download-artifact@v2
+        with:
+          name: ppc64leAlpineLiteBundle
+          path: alpine-lite-platforms/build/tmp/buildPpc64leAlpineLiteBundle/bundle
+      - name: Release with Gradle
+        env:
+          MAVEN_USER: ${{ secrets.MAVEN_USER }}
+          MAVEN_PASS: ${{ secrets.MAVEN_PASS }}
+          ORG_GRADLE_PROJECT_signingKeyId: ${{ secrets.SIGNING_KEY_ID }}
+          ORG_GRADLE_PROJECT_signingKey: ${{ secrets.SIGNING_CERT }}
+          ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.SIGNING_PASS }}
+        run: |
+          ./gradlew uploadArchives --info \
+            -x buildArm32v7DebianBundle \
+            -x buildArm64v8DebianBundle \
+            -x buildPpc64leDebianBundle \
+            -x buildArm32v6AlpineBundle \
+            -x buildArm64v8AlpineBundle \
+            -x buildPpc64leAlpineBundle \
+            -x buildArm32v6AlpineLiteBundle \
+            -x buildArm64v8AlpineLiteBundle \
+            -x buildPpc64leAlpineLiteBundle \
+            -Pversion=$RELEASE_VERSION \
+            -PpgVersion=$POSTGRES_VERSION \
+            -Possrh.username=$MAVEN_USER \
+            -Possrh.password=$MAVEN_PASS
+      - name: Create tag
+        env:
+          GIT_COMMITTER_DATE: ${{ github.event.milestone.created_at }}
+        run: |
+          git tag -a v$RELEASE_VERSION -m "PostgreSQL $POSTGRES_VERSION"
+          git push -f origin v$RELEASE_VERSION

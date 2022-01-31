@@ -500,6 +500,11 @@ allprojects {
     signing {
         required { gradle.taskGraph.hasTask("publish") }
 
+        def signingKey = findProperty("signingKey")
+        def signingKeyId = findProperty("signingKeyId")
+        def signingPassword = findProperty("signingPassword")
+        useInMemoryPgpKeys(signingKeyId, signingKey, signingPassword)
+
         publishing.publications.all { publication ->
             sign publication
         }

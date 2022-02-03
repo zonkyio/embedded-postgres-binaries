@@ -47,9 +47,6 @@ task validateInputs {
         if (!project.version || project.version == 'unspecified') {
             throw new GradleException("The 'version' property must be set")
         }
-        if (distNameParam && distNameParam != 'alpine') {
-            throw new GradleException("Currently only the 'alpine' distribution is supported")
-        }
         if (archNameParam && !(archNameParam ==~ /^[a-z0-9]+$/)) {
             throw new GradleException("The 'archName' property must contain only alphanumeric characters")
         }
@@ -59,7 +56,7 @@ task validateInputs {
 task downloadQemuExecutables(type: Download, dependsOn: validateInputs) {
     onlyIfModified true
     onlyIf { !qemuPathParam && OperatingSystem.current().isLinux() && OperatingSystem.current().getArch() == 'amd64' }
-    src(['arm', 'aarch64', 'ppc64le'].collect { arch ->
+    src(['arm', 'aarch64'].collect { arch ->
         "https://github.com/multiarch/qemu-user-static/releases/download/v2.12.0/qemu-$arch-static"
     })
     overwrite false
@@ -73,41 +70,35 @@ task prepareQemuExecutables(type: Copy, dependsOn: downloadQemuExecutables) {
 }
 
 def repackedPlatforms = [
-        ['name':'darwin', 'arch':'amd64'],
-        ['name':'windows', 'arch':'amd64']
+   ['name':'darwin', 'arch':'amd64'],
+   ['name':'windows', 'arch':'amd64']
 ]
 
-if (pgMajorVersionParam < 11) {
-    repackedPlatforms << ['name':'windows', 'arch':'i386']
-    if (pgVersionParam != '9.5.19') {
-        repackedPlatforms << ['name':'linux', 'arch':'i386']
-        repackedPlatforms << ['name':'linux', 'arch':'amd64']
-    }
+def repackWindows = [
+    ['name':'windows', 'arch':'amd64']
+]
+
+def repackDarwin = [
+        ['name':'darwin', 'arch':'amd64'],
+]
+
+if (pgMajorVersionParam < 12) {
+    throw new GradleException("Postgres major versions must be 12 or above to support TimescaleDB")
 }
 
 def debianPlatforms = [
-//        ['arch':'arm32v6', 'image':'resin/rpi-raspbian:jessie'],
-        ['arch':'arm32v7'],
         ['arch':'arm64v8'],
-        ['arch':'ppc64le']
+        ['arch':'amd64']
 ]
 
-if (pgMajorVersionParam >= 11 || pgVersionParam == '9.5.19') {
-    debianPlatforms << ['arch':'i386']
-    debianPlatforms << ['arch':'amd64']
-}
-
 def alpinePlatforms = [
-        ['arch':'i386'],
         ['arch':'amd64'],
-        ['arch':'arm32v6'],
         ['arch':'arm64v8'],
-        ['arch':'ppc64le']
 ]
 
 def alpineVariants = [
-        ['name':'', 'opt':'', 'enabled': true],
-        ['name':'lite', 'opt':'-l', 'enabled': pgMajorVersionParam >= 10]
+        ['name':'', 'opt':'', 'enabled': true]
+//         ['name':'lite', 'opt':'-l', 'enabled': pgMajorVersionParam >= 10]
 ]
 
 project(':repacked-platforms') {
@@ -173,8 +164,134 @@ project(':repacked-platforms') {
     }
 }
 
+project(':repack-windows') {
+    if (distNameParam=="windows") {
+        repackWindows.each { platform ->
+            task "build${platform.arch.capitalize()}${platform.name.capitalize()}Bundle"(group: "build (${platform.arch})", type: Exec, dependsOn: validateInputs) {
+                inputs.property('pgBinVersionParam', pgBinVersionParam)
+                inputs.property('platformName', platform.name)
+                inputs.property('archName', platform.arch)
+
+                inputs.file("$rootDir/scripts/repack-postgres.sh")
+                outputs.dir("$temporaryDir/bundle")
+
+                workingDir temporaryDir
+                commandLine 'sh', "$rootDir/scripts/repack-postgres.sh", '-v', "$pgBinVersionParam", '-p', "${platform.name}", '-a', "${platform.arch}"
+            }
+
+            task "${platform.arch}${platform.name.capitalize()}Jar"(group: "build (${platform.arch})", type: Jar) {
+                from tasks.getByName("build${platform.arch.capitalize()}${platform.name.capitalize()}Bundle")
+                include "postgres-${platform.name}-${normalizeArchName(platform.arch)}.txz"
+                appendix = "${platform.name}-${platform.arch}"
+            }
+
+            task "test${platform.arch.capitalize()}${platform.name.capitalize()}Jar"(group: "build (${platform.arch})", type: LazyExec, dependsOn: [validateInputs, "${platform.arch}${platform.name.capitalize()}Jar"]) {
+                onlyIf {
+                    def system = OperatingSystem.current()
+                    return gradle.startParameter.taskNames.any { taskName -> taskName.endsWith(name) } ||
+                            (system.isLinux() && platform.name == 'linux' && platform.arch == system.getArch()) ||
+                            (system.isMacOsX() && platform.name == 'darwin' && platform.arch == system.getArch()) ||
+                            (system.isWindows() && platform.name == 'windows')
+                }
+
+                def qemuBindings = { resolveQemuBindings() }
+                def dockerImage = { defaultDebianImage(platform.arch, qemuBindings()) }
+
+                inputs.property('pgVersion', pgVersionParam)
+                inputs.property('platformName', platform.name)
+                inputs.property('archName', platform.arch)
+
+                if (platform.name == 'linux') {
+                    inputs.property('dockerImage', dockerImage)
+                }
+
+                inputs.file("$rootDir/scripts/test-postgres-${platform.name}.sh")
+
+                workingDir tasks.getByName("${platform.arch}${platform.name.capitalize()}Jar").destinationDirectory
+
+                if (platform.name == 'linux') {
+                    commandLine 'sh', "$rootDir/scripts/test-postgres-${platform.name}.sh",
+                            '-j', "embedded-postgres-binaries-${platform.name}-${platform.arch}-${version}.jar",
+                            '-z', "postgres-${platform.name}-${normalizeArchName(platform.arch)}.txz",
+                            '-v', "$pgVersionParam", '-i', dockerImage, '-o', qemuBindings
+                } else {
+                    commandLine 'sh', "$rootDir/scripts/test-postgres-${platform.name}.sh",
+                            '-j', "embedded-postgres-binaries-${platform.name}-${platform.arch}-${version}.jar",
+                            '-z', "postgres-${platform.name}-${normalizeArchName(platform.arch)}.txz",
+                            '-v', "$pgVersionParam"
+                }
+            }
+
+            artifacts.add('bundles', tasks.getByName("${platform.arch}${platform.name.capitalize()}Jar"))
+        }
+    }
+}
+
+project(':repack-darwin') {
+    if (distNameParam=="darwin") {
+        repackDarwin.each { platform ->
+            task "build${platform.arch.capitalize()}${platform.name.capitalize()}Bundle"(group: "build (${platform.arch})", type: Exec, dependsOn: validateInputs) {
+                inputs.property('pgBinVersionParam', pgBinVersionParam)
+                inputs.property('platformName', platform.name)
+                inputs.property('archName', platform.arch)
+
+                inputs.file("$rootDir/scripts/repack-postgres.sh")
+                outputs.dir("$temporaryDir/bundle")
+
+                workingDir temporaryDir
+                commandLine 'sh', "$rootDir/scripts/repack-postgres.sh", '-v', "$pgBinVersionParam", '-p', "${platform.name}", '-a', "${platform.arch}"
+            }
+
+            task "${platform.arch}${platform.name.capitalize()}Jar"(group: "build (${platform.arch})", type: Jar) {
+                from tasks.getByName("build${platform.arch.capitalize()}${platform.name.capitalize()}Bundle")
+                include "postgres-${platform.name}-${normalizeArchName(platform.arch)}.txz"
+                appendix = "${platform.name}-${platform.arch}"
+            }
+
+            task "test${platform.arch.capitalize()}${platform.name.capitalize()}Jar"(group: "build (${platform.arch})", type: LazyExec, dependsOn: [validateInputs, "${platform.arch}${platform.name.capitalize()}Jar"]) {
+                onlyIf {
+                    def system = OperatingSystem.current()
+                    return gradle.startParameter.taskNames.any { taskName -> taskName.endsWith(name) } ||
+                            (system.isLinux() && platform.name == 'linux' && platform.arch == system.getArch()) ||
+                            (system.isMacOsX() && platform.name == 'darwin' && platform.arch == system.getArch()) ||
+                            (system.isWindows() && platform.name == 'windows')
+                }
+
+                def qemuBindings = { resolveQemuBindings() }
+                def dockerImage = { defaultDebianImage(platform.arch, qemuBindings()) }
+
+                inputs.property('pgVersion', pgVersionParam)
+                inputs.property('platformName', platform.name)
+                inputs.property('archName', platform.arch)
+
+                if (platform.name == 'linux') {
+                    inputs.property('dockerImage', dockerImage)
+                }
+
+                inputs.file("$rootDir/scripts/test-postgres-${platform.name}.sh")
+
+                workingDir tasks.getByName("${platform.arch}${platform.name.capitalize()}Jar").destinationDirectory
+
+                if (platform.name == 'linux') {
+                    commandLine 'sh', "$rootDir/scripts/test-postgres-${platform.name}.sh",
+                            '-j', "embedded-postgres-binaries-${platform.name}-${platform.arch}-${version}.jar",
+                            '-z', "postgres-${platform.name}-${normalizeArchName(platform.arch)}.txz",
+                            '-v', "$pgVersionParam", '-i', dockerImage, '-o', qemuBindings
+                } else {
+                    commandLine 'sh', "$rootDir/scripts/test-postgres-${platform.name}.sh",
+                            '-j', "embedded-postgres-binaries-${platform.name}-${platform.arch}-${version}.jar",
+                            '-z', "postgres-${platform.name}-${normalizeArchName(platform.arch)}.txz",
+                            '-v', "$pgVersionParam"
+                }
+            }
+
+            artifacts.add('bundles', tasks.getByName("${platform.arch}${platform.name.capitalize()}Jar"))
+        }
+    }
+}
+
 project(':debian-platforms') {
-    if (!distNameParam && !archNameParam && !dockerImageParam && !postgisVersionParam) {
+    if (distNameParam=="debian" && !archNameParam && !dockerImageParam && !postgisVersionParam) {
         debianPlatforms.each { platform ->
             task "build${platform.arch.capitalize()}DebianBundle"(group: "build (${platform.arch})", type: LazyExec, dependsOn: [validateInputs, prepareQemuExecutables]) {
                 def qemuBindings = { resolveQemuBindings() }
@@ -361,13 +478,6 @@ alpineVariants.each { variant ->
                     println "dockerImage:   ${dockerImage()}"
                     println "qemuBindings:  ${qemuBindings()}"
                     println ''
-
-                    if (postgisVersionParam) {
-                        println '===== Extensions ====='
-                        println "postgisVersion: $postgisVersionParam"
-                        println '======================'
-                        println ''
-                    }
                 }
 
                 inputs.property('pgVersion', pgVersionParam)
@@ -379,7 +489,7 @@ alpineVariants.each { variant ->
                 outputs.dir("$temporaryDir/bundle")
 
                 workingDir temporaryDir
-                commandLine 'sh', "$rootDir/scripts/build-postgres-alpine.sh", '-v', "$pgVersionParam", '-i', dockerImage, '-g', postgisVersionParam, '-o', qemuBindings, "${variant.opt}"
+                commandLine 'sh', "$rootDir/scripts/build-postgres-alpine.sh", '-v', "$pgVersionParam", '-i', dockerImage, '-o', qemuBindings, "${variant.opt}"
             }
 
             task "customAlpine${variant.name.capitalize()}Jar"(group: 'build (custom)', type: Jar) {
@@ -576,12 +686,12 @@ static def defaultDebianImage(archName, useEmulation) {
     def system = OperatingSystem.current()
 
     if (archName == system.getArch()) {
-        return 'ubuntu:14.04'
+        return 'ubuntu:20.04'
     } else if (system.isMacOsX() || useEmulation) {
-        return "$archName/ubuntu:14.04"
+        return "$archName/ubuntu:20.04"
     } else if (system.isLinux()) {
         def archMappings = ['arm32v6':'armel', 'arm32v7':'armhf', 'arm64v8':'arm64', 'ppc64le':'ppc64el']
-        return "multiarch/ubuntu-core:${archMappings[archName] ?: archName}-trusty"
+        return "multiarch/ubuntu-core:${archMappings[archName] ?: archName}-focal"
     } else {
         throw new GradleException("Cross-building is not supported on the current platform: $system")
     }
@@ -591,12 +701,12 @@ static def defaultAlpineImage(archName, useEmulation) {
     def system = OperatingSystem.current()
 
     if (archName == system.getArch()) {
-        return 'alpine:3.6'
+        return 'alpine:3.14'
     } else if (system.isMacOsX() || useEmulation) {
-        return "$archName/alpine:3.6"
+        return "$archName/alpine:3.14"
     } else if (system.isLinux()) {
         def archMappings = ['arm32v5':'armel', 'arm32v6':'armhf', 'arm64v8':'arm64']
-        return "multiarch/alpine:${archMappings[archName] ?: archName}-v3.6"
+        return "multiarch/alpine:${archMappings[archName] ?: archName}-v3.14"
     } else {
         throw new GradleException("Cross-building is not supported on the current platform: $system")
     }

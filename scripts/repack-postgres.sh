@@ -2,6 +2,8 @@
 set -ex
 
 ARCH_NAME=amd64
+CWD=$(dirname "$0")
+TIMESCALE_LIB=$CWD/../timescale-libs
 
 while getopts "v:p:a:" opt; do
     case $opt in
@@ -81,6 +83,9 @@ if [ "$PLATFORM_NAME" = "darwin" ] ; then
     cp $PKG_DIR/../../../../../libs/libncursesw.6.dylib ./lib/
     ln -s ../../../lib/libncursesw.6.dylib ./opt/local/lib/libncurses.6.dylib
   fi
+
+  cp $CWD/../timescale-libs/macos/*.so ./lib/postgresql
+  cp $CWD/../timescale-libs/macos/extension/* ./share/postgresql/extension
 
   tar -cJvf $TRG_DIR/postgres-darwin-$NORM_ARCH_NAME.txz \
     share/postgresql \

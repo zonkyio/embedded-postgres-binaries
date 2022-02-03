@@ -85,7 +85,7 @@ if [ "$PLATFORM_NAME" = "darwin" ] ; then
   fi
 
   cp $CWD/../timescale-libs/macos/*.so ./lib/postgresql
-  cp $CWD/../timescale-libs/macos/extension/* ./share/postgresql
+  cp $CWD/../timescale-libs/macos/extension/* ./share/postgresql/extension
 
   tar -cJvf $TRG_DIR/postgres-darwin-$NORM_ARCH_NAME.txz \
     share/postgresql \

@@ -31,8 +31,8 @@ wget -O patchelf.tar.gz "https://nixos.org/releases/patchelf/patchelf-0.9/patche
 mkdir -p /usr/src/patchelf
 tar -xf patchelf.tar.gz -C /usr/src/patchelf --strip-components 1
 cd /usr/src/patchelf
-wget -O config.guess "https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=b8ee5f79949d1d40e8820a774d813660e1be52d3"
-wget -O config.sub "https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;hb=b8ee5f79949d1d40e8820a774d813660e1be52d3"
+wget -O config.guess "https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=HEAD"
+wget -O config.sub "https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;hb=HEAD"
 ./configure --prefix=/usr/local
 make -j$(nproc)
 make install
@@ -41,8 +41,8 @@ wget -O postgresql.tar.bz2 "https://ftp.postgresql.org/pub/source/v$PG_VERSION/p
 mkdir -p /usr/src/postgresql
 tar -xf postgresql.tar.bz2 -C /usr/src/postgresql --strip-components 1
 cd /usr/src/postgresql
-wget -O config/config.guess "https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=b8ee5f79949d1d40e8820a774d813660e1be52d3"
-wget -O config/config.sub "https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;hb=b8ee5f79949d1d40e8820a774d813660e1be52d3"
+wget -O config/config.guess "https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=HEAD"
+wget -O config/config.sub "https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;hb=HEAD"
 
 gnuArch="$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)";
 

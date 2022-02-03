@@ -229,7 +229,7 @@ project(':repack-windows') {
 
 project(':repack-darwin') {
     if (distNameParam=="darwin") {
-        repackWindows.each { platform ->
+        repackDarwin.each { platform ->
             task "build${platform.arch.capitalize()}${platform.name.capitalize()}Bundle"(group: "build (${platform.arch})", type: Exec, dependsOn: validateInputs) {
                 inputs.property('pgBinVersionParam', pgBinVersionParam)
                 inputs.property('platformName', platform.name)

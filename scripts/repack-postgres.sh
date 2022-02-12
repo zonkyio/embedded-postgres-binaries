@@ -18,11 +18,11 @@ fi
 if [ "$PLATFORM_NAME" != "darwin" ] && [ "$PLATFORM_NAME" != "windows" ] && [ "$PLATFORM_NAME" != "linux" ] ; then
   echo "Platform $PLATFORM_NAME is not supported!" && exit 1;
 fi
-if [ "$ARCH_NAME" != "amd64" ] && [ "$ARCH_NAME" != "i386" ] ; then
+if [ "$ARCH_NAME" != "amd64" ] && [ "$ARCH_NAME" != "i386" ] && [ "$ARCH_NAME" != "arm64v8" ] ; then
   echo "Architecture $ARCH_NAME is not supported!" && exit 1;
 fi
-if [ "$PLATFORM_NAME" = "darwin" ] && [ "$ARCH_NAME" != "amd64" ] ; then
-  echo "Darwin platform supports only amd64 architecture!" && exit 1;
+if [ "$PLATFORM_NAME" = "darwin" ] && [ "$ARCH_NAME" = "i386" ] ; then
+  echo "Darwin platform supports only amd64 or arm64v8 architecture!" && exit 1;
 fi
 
 
@@ -48,6 +48,8 @@ fi
 
 if [ "$ARCH_NAME" = "amd64" ] ; then
   NORM_ARCH_NAME="x86_64"
+elif [ "$ARCH_NAME" = "arm64v8" ] ; then
+  NORM_ARCH_NAME="arm_64"
 else
   NORM_ARCH_NAME="x86_32"
 fi

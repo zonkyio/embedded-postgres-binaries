@@ -17,6 +17,7 @@ ext {
     qemuPathParam = project.findProperty('qemuPath') ?: ''
 
     pgMajorVersionParam = (pgVersionParam =~ /(\d+).+/).with { matches() ? it[0][1].toInteger() : null }
+    pgMinorVersionParam = (pgVersionParam =~ /\d+\.(\d+).*/).with { matches() ? it[0][1].toInteger() : null }
 }
 
 allprojects {
@@ -76,6 +77,15 @@ def repackedPlatforms = [
         ['name':'darwin', 'arch':'amd64'],
         ['name':'windows', 'arch':'amd64']
 ]
+
+if (pgMajorVersionParam > 14
+        || (pgMajorVersionParam == 14 && pgMinorVersionParam >= 1)
+        || (pgMajorVersionParam == 13 && pgMinorVersionParam >= 5)
+        || (pgMajorVersionParam == 12 && pgMinorVersionParam >= 9)
+        || (pgMajorVersionParam == 11 && pgMinorVersionParam >= 14)
+        || (pgMajorVersionParam == 10 && pgMinorVersionParam >= 19)) {
+    repackedPlatforms << ['name':'darwin', 'arch':'arm64v8']
+}
 
 if (pgMajorVersionParam < 11) {
     repackedPlatforms << ['name':'windows', 'arch':'i386']

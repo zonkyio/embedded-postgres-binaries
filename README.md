@@ -4,94 +4,21 @@
 
 This project provides lightweight bundles of PostgreSQL binaries with reduced size that are intended for testing purposes.
 It is a supporting project for the primary [io.zonky.test:embedded-database-spring-test](https://github.com/zonkyio/embedded-database-spring-test) and [io.zonky.test:embedded-postgres](https://github.com/zonkyio/embedded-postgres) projects.
-However, with a little effort it can be also applicable with [com.opentable:otj-pg-embedded](https://github.com/opentable/otj-pg-embedded) and maybe some other projects. 
+However, with a little effort, the embedded binaries can also be integrated with other projects.
 
-## Provides
+## Provided features
 
 * Lightweight bundles of PostgreSQL binaries with reduced size (~10MB)
 * Embedded PostgreSQL 11+ binaries even for Linux platform
 * Configurable version of PostgreSQL binaries
 
-## Use with [embedded-database-spring-test](https://github.com/zonkyio/embedded-database-spring-test) or [embedded-postgres](https://github.com/zonkyio/embedded-postgres) project
+## Projects using embedded binaries
 
-All necessary dependencies are already included in these projects, so no further action is required.
-However, you can change the version of the postgres binaries by following the instructions described in [Postgres version](#postgres-version).
-
-## Use with [com.opentable:otj-pg-embedded](https://github.com/opentable/otj-pg-embedded) project
-
-First, you have to add any of the [available dependencies](https://mvnrepository.com/artifact/io.zonky.test.postgres) to your Maven configuration:
-
-```xml
-<dependency>
-    <groupId>io.zonky.test.postgres</groupId>
-    <artifactId>embedded-postgres-binaries-linux-amd64</artifactId>
-    <version>11.11.0</version>
-    <scope>test</scope>
-</dependency>
-```
-
-Then you need to implement a custom [PgBinaryResolver](https://github.com/opentable/otj-pg-embedded/blob/master/src/main/java/com/opentable/db/postgres/embedded/PgBinaryResolver.java): 
-```java
-public class CustomPostgresBinaryResolver implements PgBinaryResolver {
-    public InputStream getPgBinary(String system, String architecture) throws IOException {
-        ClassPathResource resource = new ClassPathResource(format("postgres-%s-%s.txz", system, architecture));
-        return resource.getInputStream();
-    }
-}
-```
-
-<details>
-  <summary>Alpine variant</summary>
-  
-  ```java
-  public class CustomPostgresBinaryResolver implements PgBinaryResolver {
-      public InputStream getPgBinary(String system, String architecture) throws IOException {
-          ClassPathResource resource = new ClassPathResource(format("postgres-%s-%s-alpine_linux.txz", system, architecture));
-          return resource.getInputStream();
-      }
-  }
-  ```
-
-</details><br/>
-
-And finally register it to the junit rule.
-
-```java
-@Rule
-public SingleInstancePostgresRule pg = EmbeddedPostgresRules.singleInstance()
-        .customize(builder -> builder.setPgBinaryResolver(new CustomPostgresBinaryResolver()));
-```
-
-## Use with [pg-embedded](https://pg-embedded.softwareforge.de/)
-
-`pg-embedded` is a Java 11+ library that uses zonky.io Postgres binaries to spin up embedded PostgreSQL instances. 
-
-It can be used [with any build tool](https://pg-embedded.softwareforge.de/4.0/dependency-info.html) and supports automatic binary selection through properties or included builders:
-
-```java
-try (DatabaseManager manager = DatabaseManager.multiDatabases()
-    .withInstancePreparer(b -> b.setServerVersion("14"))
-    .build()
-    .start()) {
-    DatabaseInfo databaseInfo = manager.getDatabaseInfo();
-    // connected to PostgreSQL 14.x
-    try (Connection c = databaseInfo.asDataSource().getConnection();
-        Statement s = c.createStatement()) {
-        try (ResultSet rs = s.executeQuery("SELECT 1")) {
-            assertTrue(rs.next());
-            assertEquals(1, rs.getInt(1));
-            assertFalse(rs.next());
-        }
-    }
-}
-```
-
-`pg-embedded` supports JUnit 5:
-
-```java
-@RegisterExtension
-public static EmbeddedPgExtension multiDatabase = MultiDatabaseBuilder.instanceWithDefaults().build();
-```
+* [zonkyio/embedded-database-spring-test](https://github.com/zonkyio/embedded-database-spring-test) (Java - Spring)
+* [zonkyio/embedded-postgres](https://github.com/zonkyio/embedded-postgres) (Java)
+* [hgschmie/pg-embedded](https://github.com/hgschmie/pg-embedded) (Java)
+* [fergusstrange/embedded-postgres](https://github.com/fergusstrange/embedded-postgres) (Go)
+* [faokunega/pg-embed](https://github.com/faokunega/pg-embed) (Rust)
 
 ## Postgres version
 

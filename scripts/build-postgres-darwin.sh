@@ -60,4 +60,4 @@ tar -cJvf ../embedded-postgres-binaries-darwin-$(uname -m)-${PG_VERSION}.0.txz \
 
 # # Zip the tars (who knows why)
 cd ..
-zip embedded-postgres-binaries-darwin-$(uname -m)-${PG_VERSION}.0.zip ../embedded-postgres-binaries-darwin-$(uname -m)-${PG_VERSION}.0.txz
+zip embedded-postgres-binaries-darwin-$(uname -m)-${PG_VERSION}.0.zip embedded-postgres-binaries-darwin-$(uname -m)-${PG_VERSION}.0.txz

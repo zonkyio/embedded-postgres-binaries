@@ -10,6 +10,11 @@
 PG_VERSION=14.1
 TIMESCALE_VERSION=2.5.1
 
+ARCH=$(uname -m)
+if [ "$ARCH" == "x86_64" ]; then
+    ARCH="amd64"
+fi
+
 mkdir cd darwin_build
 cd darwin_build
 
@@ -50,7 +55,7 @@ find $PREFIX/lib -type f -name "*.so"  | \
 cd $PREFIX
 
 # Tar it up
-tar -cJvf ../embedded-postgres-binaries-darwin-$(uname -m)-${PG_VERSION}.0.txz \
+tar -cJvf ../embedded-postgres-binaries-darwin-${ARCH}-${PG_VERSION}.0.txz \
   share/* \
   lib/libpq*.dylib \
   lib/*.so \
@@ -60,4 +65,4 @@ tar -cJvf ../embedded-postgres-binaries-darwin-$(uname -m)-${PG_VERSION}.0.txz \
 
 # # Zip the tars (who knows why)
 cd ..
-zip embedded-postgres-binaries-darwin-$(uname -m)-${PG_VERSION}.0.zip embedded-postgres-binaries-darwin-$(uname -m)-${PG_VERSION}.0.txz
+zip embedded-postgres-binaries-darwin-${ARCH}-${PG_VERSION}.0.zip embedded-postgres-binaries-darwin-${ARCH}-${PG_VERSION}.0.txz

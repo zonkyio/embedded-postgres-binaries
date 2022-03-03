@@ -18,7 +18,13 @@ function do_build {
     cp custom-debian-platform/build/tmp/buildCustomDebianBundle/bundle/postgres-linux-debian.txz "release/postgresql-${version}-linux-amd64.txz"
 }
 
+function do_release {
+    version="$1"
+    gh release delete "${version}-with-tools" || true
+    gh release create "${version}-with-tools" --notes "" --title "" release/postgresql-${version}-*
+}
 
 for version in "13.6" "14.2"; do
     do_build "$version"
+    do_release "$version"
 done

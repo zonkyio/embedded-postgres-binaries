@@ -101,7 +101,11 @@ if [ "$PLATFORM_NAME" = "darwin" ] ; then
     $([ -f lib/postgresql/llvmjit_types.bc ] && echo lib/postgresql/*.so lib/postgresql/*.bc || echo lib/postgresql/*.so) \
     bin/initdb \
     bin/pg_ctl \
-    bin/postgres
+    bin/postgres \
+    bin/pg_dump \
+    bin/pg_dumpall \
+    bin/pg_restore \
+    bin/psql
 
 elif [ "$PLATFORM_NAME" = "windows" ] ; then
 
@@ -114,6 +118,10 @@ elif [ "$PLATFORM_NAME" = "windows" ] ; then
     bin/initdb.exe \
     bin/pg_ctl.exe \
     bin/postgres.exe \
+    bin/pg_dump.exe \
+    bin/pg_dumpall.exe \
+    bin/pg_restore.exe \
+    bin/psql.exe \
     bin/*.dll
 
 elif [ "$PLATFORM_NAME" = "linux" ] ; then
@@ -123,6 +131,10 @@ elif [ "$PLATFORM_NAME" = "linux" ] ; then
     lib \
     bin/initdb \
     bin/pg_ctl \
-    bin/postgres
+    bin/postgres \
+    bin/pg_dump \
+    bin/pg_dumpall \
+    bin/pg_restore \
+    bin/psql
 
 fi

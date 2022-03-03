@@ -1,4 +1,9 @@
-# <img src="zonky.jpg" height="100"> Embedded Postgres Binaries
+# <img src="zonky.jpg" height="100"> Embedded Postgres Binaries (with tools)
+
+## Fork
+
+This fork includes additional tools with generated binaries: `psql`, `pg_dump`, `pg_dumpall`, and `pg_restore`.
+
 
 ## Introduction
 

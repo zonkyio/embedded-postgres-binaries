@@ -9,6 +9,8 @@ To generate the Github releases:
 2. Follow the prerequisites section below
 3. run `./build_and_release.sh`
 
+Edit the `build_and_release.sh` script to choose versions to release.
+
 
 ## Introduction
 

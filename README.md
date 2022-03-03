@@ -4,6 +4,11 @@
 
 This fork includes additional tools with generated binaries: `psql`, `pg_dump`, `pg_dumpall`, and `pg_restore`.
 
+To generate the Github releases:
+1. Make sure to have the `gh` tool installed
+2. Follow the prerequisites section below
+3. run `./build_and_release.sh`
+
 
 ## Introduction
 

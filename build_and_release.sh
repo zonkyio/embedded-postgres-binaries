@@ -20,9 +20,10 @@ function do_build {
 
 function do_release {
     version="$1"
+    release_name="${version}-with-tools-$(date "+%Y%m%d")"
     sums=$(echo "sha256 sums:" && cd release && sha256sum postgresql-${version}-*)
-    yes | gh release delete "${version}-with-tools" || true
-    gh release create "${version}-with-tools" --notes "${sums}" --title "" release/postgresql-${version}-*
+    yes | gh release delete "${release_name}" || true
+    gh release create "${release_name}" --notes "${sums}" --title "" release/postgresql-${version}-*
 }
 
 for version in "13.6" "14.2"; do

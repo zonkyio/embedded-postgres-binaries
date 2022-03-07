@@ -162,5 +162,15 @@ Optional parameters:
   - default value: executables are resolved from `/usr/bin` directory or downloaded from https://github.com/multiarch/qemu-user-static/releases/download/v2.12.0
   - supported values: a path to a directory containing qemu executables
 
+### MacOS arm64/amd64
+We've been unable to get cross compiling to work nicely for this platform so generation of these is a manual process.
+- To generate for arm64 you need to do the compling on an M1 mac
+- To generate for amd64 you need to be on an intel mac
+- You need brew installed (in order to run cmake, which timescale requires)
+- Simply run the script in scripts/build-postgres-darwin.sh
+- It should compile everything, remove baked in hard coded paths in the libraries, and make a file, e.g.
+`scripts/darwin_build/embedded-postgres-binaries-darwin-arm64-14.1.0.zip` suitable for upload to the release page on github.
+- For simplicity and because we aren't using it in vega right now, this omits a SSL support and a few other optional bits.
+
 ## License
 The project is released under version 2.0 of the [Apache License](http://www.apache.org/licenses/LICENSE-2.0.html).

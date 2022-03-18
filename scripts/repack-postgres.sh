@@ -67,6 +67,7 @@ mkdir -p $DIST_DIR $TRG_DIR
 
 rm -rf $PKG_DIR && mkdir -p $PKG_DIR
 
+
 if [ "$PLATFORM_NAME" = "linux" ] ; then
   tar -xzf $DIST_FILE -C $PKG_DIR
 else
@@ -74,7 +75,7 @@ else
 fi
 
 cd $PKG_DIR/pgsql
-
+rsync -a $PKG_DIR/../../../../../share/ $PKG_DIR/pgsql/share
 
 if [ "$PLATFORM_NAME" = "darwin" ] ; then
 

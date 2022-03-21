@@ -32,6 +32,7 @@ TRG_DIR=$PWD/bundle
 mkdir -p $TRG_DIR
 
 docker run -i --rm -v ${TRG_DIR}:/usr/local/pg-dist \
+-v $PWD/../../../../share:/tmp/share \
 -e PG_VERSION=$PG_VERSION \
 -e POSTGIS_VERSION=$POSTGIS_VERSION \
 -e ICU_ENABLED=$ICU_ENABLED \
@@ -44,6 +45,7 @@ $DOCKER_OPTS $IMG_NAME /bin/bash -ex -c 'echo "Starting building postgres binari
     && apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
         wget \
+        rsync \
         bzip2 \
         xz-utils \
         gcc \
@@ -149,6 +151,7 @@ $DOCKER_OPTS $IMG_NAME /bin/bash -ex -c 'echo "Starting building postgres binari
     && find ./bin -type f \( -name "initdb" -o -name "pg_ctl" -o -name "postgres" -o -name "pg_dump" -o -name "pg_dumpall" -o -name "pg_restore" -o -name "pg_isready" -o -name "psql" \) -print0 | xargs -0 -n1 patchelf --set-rpath "\$ORIGIN/../lib" \
     && find ./lib -maxdepth 1 -type f -name "*.so*" -print0 | xargs -0 -n1 patchelf --set-rpath "\$ORIGIN" \
     && find ./lib/postgresql -maxdepth 1 -type f -name "*.so*" -print0 | xargs -0 -n1 patchelf --set-rpath "\$ORIGIN/.." \
+    && rsync -a /tmp/share/ /usr/local/pg-build/share \
     && tar -cJvf /usr/local/pg-dist/postgres-linux-debian.txz --hard-dereference \
         share/postgresql \
         lib \

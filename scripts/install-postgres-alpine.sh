@@ -77,9 +77,9 @@ make -C contrib install
 
 export PATH=/usr/local/pg-build/bin:$PATH
 cd /
-wget https://github.com/timescale/timescaledb/archive/refs/tags/2.5.1.tar.gz
-tar -xzf 2.5.1.tar.gz
-cd timescaledb-2.5.1
+wget https://github.com/timescale/timescaledb/archive/refs/tags/2.6.0.tar.gz
+tar -xzf 2.6.0.tar.gz
+cd timescaledb-2.6.0
 ./bootstrap
 cd ./build
 make

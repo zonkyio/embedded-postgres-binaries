@@ -79,11 +79,7 @@ def repackedPlatforms = [
 ]
 
 if (pgMajorVersionParam > 14
-        || (pgMajorVersionParam == 14 && pgMinorVersionParam >= 1)
-        || (pgMajorVersionParam == 13 && pgMinorVersionParam >= 5)
-        || (pgMajorVersionParam == 12 && pgMinorVersionParam >= 9)
-        || (pgMajorVersionParam == 11 && pgMinorVersionParam >= 14)
-        || (pgMajorVersionParam == 10 && pgMinorVersionParam >= 19)) {
+        || (pgMajorVersionParam == 14 && pgMinorVersionParam >= 1)) {
     repackedPlatforms << ['name':'darwin', 'arch':'arm64v8']
 }
 

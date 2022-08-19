@@ -78,7 +78,7 @@ cd $PKG_DIR/pgsql
 
 if [ "$PLATFORM_NAME" = "darwin" ] ; then
 
-  if [ "$PG_VERSION" = "13.5-1" ] || [ "$PG_VERSION" = "13.6-1" ] || [ "$PG_VERSION" = "13.7-1" ] ; then
+  if [ "$PG_VERSION" = "13.5-1" ] || [ "$PG_VERSION" = "13.6-1" ] || [ "$PG_VERSION" = "13.7-1" ] || [ "$PG_VERSION" = "13.8-1" ] ; then
     mkdir -p ./opt/local/lib
     cp $PKG_DIR/../../../../../libs/libncursesw.6.dylib ./lib/
     ln -s ../../../lib/libncursesw.6.dylib ./opt/local/lib/libncurses.6.dylib

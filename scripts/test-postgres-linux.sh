@@ -37,7 +37,6 @@ docker run -i --rm -v ${LIB_DIR}:/usr/local/pg-lib:ro \
 -e PG_VERSION=$PG_VERSION \
 -e POSTGIS_VERSION=$POSTGIS_VERSION \
 $DOCKER_OPTS $IMG_NAME /bin/bash -ex -c 'echo "Starting testing postgres binaries" \
-    && sed "s@archive.ubuntu.com@cz.archive.ubuntu.com@" -i /etc/apt/sources.list \
     && apt-get update && apt-get install -y --no-install-recommends \
         postgresql-client \
         xz-utils \

@@ -10,12 +10,12 @@ jobs:
         postgres: [15.1, 14.6, 13.9, 12.13, 11.18, 10.23]
     steps:
       - name: Checkout project
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Set up JDK
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v3
         with:
           distribution: 'zulu'
-          java-version: 10
+          java-version: 15
       - name: Test PostgreSQL bundle
         if: ${{ !(startsWith(matrix.postgres, '10.') || startsWith(matrix.postgres, '9.')) }}
         run: ./gradlew :debian-platforms:testAmd64DebianJar -Pversion=${{ matrix.postgres }}-TEST -PpgVersion=${{ matrix.postgres }}
@@ -37,12 +37,12 @@ jobs:
         postgres: [15.1, 14.6, 13.9, 12.13, 11.18, 10.23]
     steps:
       - name: Checkout project
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Set up JDK
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v3
         with:
           distribution: 'zulu'
-          java-version: 10
+          java-version: 15
       - name: Test PostgreSQL bundle
         run: ./gradlew :alpine-platforms:testAmd64AlpineJar -Pversion=${{ matrix.postgres }}-TEST -PpgVersion=${{ matrix.postgres }}
         timeout-minutes: 10
@@ -59,12 +59,12 @@ jobs:
         postgres: [15.1, 14.6, 13.9, 12.13, 11.18, 10.23]
     steps:
       - name: Checkout project
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Set up JDK
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v3
         with:
           distribution: 'zulu'
-          java-version: 10
+          java-version: 15
       - name: Test PostgreSQL bundle
         run: ./gradlew :repacked-platforms:testAmd64DarwinJar -Pversion=${{ matrix.postgres }}-TEST -PpgVersion=${{ matrix.postgres }}
         timeout-minutes: 10
@@ -77,12 +77,12 @@ jobs:
         postgres: [15.1, 14.6, 13.9, 12.13, 11.18, 10.23]
     steps:
       - name: Checkout project
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Set up JDK
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v3
         with:
           distribution: 'zulu'
-          java-version: 10
+          java-version: 15
       - name: Install GNU Wget
         run: choco install wget
       - name: Update system paths

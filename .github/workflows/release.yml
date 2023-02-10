@@ -8,14 +8,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           ref: master
       - name: Set up JDK
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v3
         with:
           distribution: 'zulu'
-          java-version: 10
+          java-version: 15
       - name: Set environment variables
         env:
           MILESTONE_VERSION: ${{ github.event.milestone.title }}
@@ -36,14 +36,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           ref: master
       - name: Set up JDK
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v3
         with:
           distribution: 'zulu'
-          java-version: 10
+          java-version: 15
       - name: Set environment variables
         env:
           MILESTONE_VERSION: ${{ github.event.milestone.title }}
@@ -64,14 +64,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           ref: master
       - name: Set up JDK
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v3
         with:
           distribution: 'zulu'
-          java-version: 10
+          java-version: 15
       - name: Set environment variables
         env:
           MILESTONE_VERSION: ${{ github.event.milestone.title }}
@@ -92,14 +92,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           ref: master
       - name: Set up JDK
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v3
         with:
           distribution: 'zulu'
-          java-version: 10
+          java-version: 15
       - name: Set environment variables
         env:
           MILESTONE_VERSION: ${{ github.event.milestone.title }}
@@ -120,14 +120,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           ref: master
       - name: Set up JDK
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v3
         with:
           distribution: 'zulu'
-          java-version: 10
+          java-version: 15
       - name: Set environment variables
         env:
           MILESTONE_VERSION: ${{ github.event.milestone.title }}
@@ -148,14 +148,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           ref: master
       - name: Set up JDK
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v3
         with:
           distribution: 'zulu'
-          java-version: 10
+          java-version: 15
       - name: Set environment variables
         env:
           MILESTONE_VERSION: ${{ github.event.milestone.title }}
@@ -176,14 +176,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           ref: master
       - name: Set up JDK
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v3
         with:
           distribution: 'zulu'
-          java-version: 10
+          java-version: 15
       - name: Set environment variables
         env:
           MILESTONE_VERSION: ${{ github.event.milestone.title }}
@@ -204,14 +204,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           ref: master
       - name: Set up JDK
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v3
         with:
           distribution: 'zulu'
-          java-version: 10
+          java-version: 15
       - name: Set environment variables
         env:
           MILESTONE_VERSION: ${{ github.event.milestone.title }}
@@ -232,14 +232,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           ref: master
       - name: Set up JDK
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v3
         with:
           distribution: 'zulu'
-          java-version: 10
+          java-version: 15
       - name: Set environment variables
         env:
           MILESTONE_VERSION: ${{ github.event.milestone.title }}
@@ -261,7 +261,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           ref: master
       - name: Set up Git
@@ -269,10 +269,10 @@ jobs:
           git config user.name "Zonky Bot"
           git config user.email "bot@zonky.com"
       - name: Set up JDK
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v3
         with:
           distribution: 'zulu'
-          java-version: 10
+          java-version: 15
       - name: Set environment variables
         env:
           MILESTONE_VERSION: ${{ github.event.milestone.title }}

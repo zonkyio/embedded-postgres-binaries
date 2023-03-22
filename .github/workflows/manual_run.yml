@@ -1,0 +1,60 @@
+name: Build manually
+on: [workflow_dispatch]
+
+env:
+  POSTGRES_VERSION: "14.2"
+  RELEASE_VERSION: "14.2-gis"
+  # See https://docs.aws.amazon.com/AmazonRDS/latest/PostgreSQLReleaseNotes/postgresql-extensions.html#postgresql-extensions-14x
+  POSTGIS_VERSION: "2.5.9" # TODO 3.1.5
+
+jobs:
+  linux:
+    name: PostgreSQL ${{ env.POSTGRES_VERSION }} (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v3
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: 15
+      - name: Build Bundle
+        run: ./gradlew :debian-platforms:buildArm64v8DebianBundle -Pversion=$RELEASE_VERSION -PpgVersion=$POSTGRES_VERSION -PpostgisVersion=$POSTGIS_VERSION
+      - name: Test PostgreSQL bundle
+        run: ./gradlew :debian-platforms:testAmd64DebianJar -Pversion=$POSTGRES_VERSION-TEST -PpgVersion=$POSTGRES_VERSION -PpostgisVersion=$POSTGIS_VERSION
+        timeout-minutes: 10
+  macos:
+    name: PostgreSQL ${{ env.POSTGRES_VERSION }} (MacOS)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v3
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: 15
+      - name: Test PostgreSQL bundle
+        run: ./gradlew :repacked-platforms:testAmd64DarwinJar -Pversion=$POSTGRES_VERSION-TEST -PpgVersion=$POSTGRES_VERSION -PpostgisVersion=$POSTGIS_VERSION
+        timeout-minutes: 10
+  windows:
+    name: PostgreSQL ${{ env.POSTGRES_VERSION }} (Windows)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v3
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: 15
+      - name: Install GNU Wget
+        run: choco install wget
+      - name: Update system paths
+        run: echo $PGBIN >> $GITHUB_PATH
+        shell: bash
+      - name: Test PostgreSQL bundle
+        run: ./gradlew :repacked-platforms:testAmd64WindowsJar -Pversion=$POSTGRES_VERSION-TEST -PpgVersion=$POSTGRES_VERSION -PpostgisVersion=$POSTGIS_VERSION
+        shell: bash
+        timeout-minutes: 10

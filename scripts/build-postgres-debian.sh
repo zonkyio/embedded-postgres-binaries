@@ -97,7 +97,7 @@ $DOCKER_OPTS $IMG_NAME /bin/bash -ex -c 'echo "Starting building postgres binari
     && make -C contrib install \
     \
     && if [ -n "$POSTGIS_VERSION" ]; then \
-      apt-get install -y --no-install-recommends curl libjson-c-dev libsqlite3-0 libsqlite3-dev sqlite3 unzip \
+      apt-get install -y --no-install-recommends curl libjson-c-dev libsqlite3-0 libsqlite3-dev sqlite3 unzip protobuf-c-compiler libprotobuf-dev libprotobuf-c-dev \
       && mkdir -p /usr/src/proj \
         && curl -sL "https://download.osgeo.org/proj/proj-$PROJ_VERSION.tar.gz" | tar -xzf - -C /usr/src/proj --strip-components 1 \
         && cd /usr/src/proj \

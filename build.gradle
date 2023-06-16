@@ -79,11 +79,7 @@ def repackedPlatforms = [
 ]
 
 if (pgMajorVersionParam > 14
-        || (pgMajorVersionParam == 14 && pgMinorVersionParam >= 1)
-        || (pgMajorVersionParam == 13 && pgMinorVersionParam >= 5)
-        || (pgMajorVersionParam == 12 && pgMinorVersionParam >= 9)
-        || (pgMajorVersionParam == 11 && pgMinorVersionParam >= 14)
-        || (pgMajorVersionParam == 10 && pgMinorVersionParam >= 19)) {
+        || (pgMajorVersionParam == 14 && pgMinorVersionParam >= 1)) {
     repackedPlatforms << ['name':'darwin', 'arch':'arm64v8']
 }
 
@@ -591,12 +587,12 @@ static def defaultDebianImage(archName, useEmulation) {
     def system = OperatingSystem.current()
 
     if (archName == system.getArch()) {
-        return 'ubuntu:14.04'
+        return 'ubuntu:18.04'
     } else if (system.isMacOsX() || useEmulation) {
-        return "$archName/ubuntu:14.04"
+        return "$archName/ubuntu:18.04"
     } else if (system.isLinux()) {
         def archMappings = ['arm32v6':'armel', 'arm32v7':'armhf', 'arm64v8':'arm64', 'ppc64le':'ppc64el']
-        return "multiarch/ubuntu-core:${archMappings[archName] ?: archName}-trusty"
+        return "multiarch/ubuntu-core:${archMappings[archName] ?: archName}-bionic"
     } else {
         throw new GradleException("Cross-building is not supported on the current platform: $system")
     }

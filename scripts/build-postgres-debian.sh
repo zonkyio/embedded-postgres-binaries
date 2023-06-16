@@ -42,6 +42,7 @@ docker run -i --rm -v ${TRG_DIR}:/usr/local/pg-dist \
 -e GDAL_VERSION=2.4.1 \
 $DOCKER_OPTS $IMG_NAME /bin/bash -ex -c 'echo "Starting building postgres binaries" \
     && sed "s@archive.ubuntu.com@us.archive.ubuntu.com@" -i /etc/apt/sources.list \
+    && ln -snf /usr/share/zoneinfo/Etc/UTC /etc/localtime && echo "Etc/UTC" > /etc/timezone \
     && apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
         wget \
@@ -63,8 +64,6 @@ $DOCKER_OPTS $IMG_NAME /bin/bash -ex -c 'echo "Starting building postgres binari
         python3-dev \
         tcl-dev \
         \
-    && sudo sed -i -e "s=^mozilla/DST_Root_CA_X3.crt=!mozilla/DST_Root_CA_X3.crt=" /etc/ca-certificates.conf \
-    && sudo update-ca-certificates \
     && wget -O patchelf.tar.gz "https://nixos.org/releases/patchelf/patchelf-0.9/patchelf-0.9.tar.gz" \
     && mkdir -p /usr/src/patchelf \
     && tar -xf patchelf.tar.gz -C /usr/src/patchelf --strip-components 1 \
@@ -144,8 +143,9 @@ $DOCKER_OPTS $IMG_NAME /bin/bash -ex -c 'echo "Starting building postgres binari
     ; fi \
     \
     && cd /usr/local/pg-build \
-    && cp /lib/*/libz.so.1 /lib/*/liblzma.so.5 /usr/lib/libossp-uuid.so.16 /usr/lib/*/libxml2.so.2 /usr/lib/*/libxslt.so.1 ./lib \
-    && cp /lib/*/libssl.so.1.0.0 /lib/*/libcrypto.so.1.0.0 ./lib || cp /usr/lib/*/libssl.so.1.0.0 /usr/lib/*/libcrypto.so.1.0.0 ./lib \
+    && cp /usr/lib/libossp-uuid.so.16 ./lib || cp /usr/lib/*/libossp-uuid.so.16 ./lib \
+    && cp /lib/*/libz.so.1 /lib/*/liblzma.so.5 /usr/lib/*/libxml2.so.2 /usr/lib/*/libxslt.so.1 ./lib \
+    && cp /lib/*/libssl.so.1* /lib/*/libcrypto.so.1* ./lib || cp /usr/lib/*/libssl.so.1* /usr/lib/*/libcrypto.so.1* ./lib \
     && if [ "$ICU_ENABLED" = true ]; then cp --no-dereference /usr/lib/*/libicudata.so* /usr/lib/*/libicuuc.so* /usr/lib/*/libicui18n.so* ./lib; fi \
     && if [ -n "$POSTGIS_VERSION" ]; then cp --no-dereference /lib/*/libjson-c.so* /usr/lib/*/libsqlite3.so* ./lib ; fi \
     && find ./bin -type f \( -name "initdb" -o -name "pg_ctl" -o -name "postgres" -o -name "pg_dump" -o -name "pg_dumpall" -o -name "pg_restore" -o -name "pg_isready" -o -name "psql" \) -print0 | xargs -0 -n1 patchelf --set-rpath "\$ORIGIN/../lib" \

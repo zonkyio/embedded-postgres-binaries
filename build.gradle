@@ -113,7 +113,7 @@ def alpinePlatforms = [
 
 def alpineVariants = [
         ['name':'', 'opt':'', 'enabled': true],
-        ['name':'lite', 'opt':'-l', 'enabled': pgMajorVersionParam >= 10]
+        ['name':'lite', 'opt':'-l', 'enabled': pgMajorVersionParam >= 10 && pgMajorVersionParam < 16]
 ]
 
 project(':repacked-platforms') {

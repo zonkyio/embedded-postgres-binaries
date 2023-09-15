@@ -174,6 +174,7 @@ jobs:
   alpine-lite-arm32v6:
     name: Alpine - arm32v6 (Lite)
     runs-on: ubuntu-latest
+    if: ${{ !(startsWith(github.event.milestone.title, '16.')) }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -202,6 +203,7 @@ jobs:
   alpine-lite-arm64v8:
     name: Alpine - arm64v8 (Lite)
     runs-on: ubuntu-latest
+    if: ${{ !(startsWith(github.event.milestone.title, '16.')) }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -230,6 +232,7 @@ jobs:
   alpine-lite-ppc64le:
     name: Alpine - ppc64le (Lite)
     runs-on: ubuntu-latest
+    if: ${{ !(startsWith(github.event.milestone.title, '16.')) }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -310,16 +313,19 @@ jobs:
           name: ppc64leAlpineBundle
           path: alpine-platforms/build/tmp/buildPpc64leAlpineBundle/bundle
       - name: Download bundle - arm32v6AlpineLite
+        if: ${{ !(startsWith(github.event.milestone.title, '16.')) }}
         uses: actions/download-artifact@v2
         with:
           name: arm32v6AlpineLiteBundle
           path: alpine-lite-platforms/build/tmp/buildArm32v6AlpineLiteBundle/bundle
       - name: Download bundle - arm64v8AlpineLite
+        if: ${{ !(startsWith(github.event.milestone.title, '16.')) }}
         uses: actions/download-artifact@v2
         with:
           name: arm64v8AlpineLiteBundle
           path: alpine-lite-platforms/build/tmp/buildArm64v8AlpineLiteBundle/bundle
       - name: Download bundle - ppc64leAlpineLite
+        if: ${{ !(startsWith(github.event.milestone.title, '16.')) }}
         uses: actions/download-artifact@v2
         with:
           name: ppc64leAlpineLiteBundle

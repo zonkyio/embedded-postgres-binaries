@@ -261,6 +261,7 @@ jobs:
   release:
     name: Collect artifacts & Release ${{ github.event.milestone.title }}
     needs: [debian-arm32v7, debian-arm64v8, debian-ppc64le, alpine-arm32v6, alpine-arm64v8, alpine-ppc64le, alpine-lite-arm32v6, alpine-lite-arm64v8, alpine-lite-ppc64le]
+    if: ${{ !failure() }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -331,6 +332,7 @@ jobs:
           name: ppc64leAlpineLiteBundle
           path: alpine-lite-platforms/build/tmp/buildPpc64leAlpineLiteBundle/bundle
       - name: Release with Gradle
+        if: ${{ !(startsWith(github.event.milestone.title, '16.')) }}
         env:
           MAVEN_USER: ${{ secrets.MAVEN_USER }}
           MAVEN_PASS: ${{ secrets.MAVEN_PASS }}
@@ -348,6 +350,26 @@ jobs:
             -x buildArm32v6AlpineLiteBundle \
             -x buildArm64v8AlpineLiteBundle \
             -x buildPpc64leAlpineLiteBundle \
+            -Pversion=$RELEASE_VERSION \
+            -PpgVersion=$POSTGRES_VERSION \
+            -Possrh.username=$MAVEN_USER \
+            -Possrh.password=$MAVEN_PASS
+      - name: Release with Gradle 2
+        if: ${{ startsWith(github.event.milestone.title, '16.') }}
+        env:
+          MAVEN_USER: ${{ secrets.MAVEN_USER }}
+          MAVEN_PASS: ${{ secrets.MAVEN_PASS }}
+          ORG_GRADLE_PROJECT_signingKeyId: ${{ secrets.SIGNING_KEY_ID }}
+          ORG_GRADLE_PROJECT_signingKey: ${{ secrets.SIGNING_CERT }}
+          ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.SIGNING_PASS }}
+        run: |
+          ./gradlew uploadArchives --info \
+            -x buildArm32v7DebianBundle \
+            -x buildArm64v8DebianBundle \
+            -x buildPpc64leDebianBundle \
+            -x buildArm32v6AlpineBundle \
+            -x buildArm64v8AlpineBundle \
+            -x buildPpc64leAlpineBundle \
             -Pversion=$RELEASE_VERSION \
             -PpgVersion=$POSTGRES_VERSION \
             -Possrh.username=$MAVEN_USER \

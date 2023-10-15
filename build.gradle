@@ -134,7 +134,7 @@ project(':repacked-platforms') {
             task "${platform.arch}${platform.name.capitalize()}Jar"(group: "build (${platform.arch})", type: Jar) {
                 from tasks.getByName("build${platform.arch.capitalize()}${platform.name.capitalize()}Bundle")
                 include "postgres-${platform.name}-${normalizeArchName(platform.arch)}.txz"
-                appendix = "${platform.name}-${platform.arch}"
+                archiveAppendix = "${platform.name}-${platform.arch}"
             }
 
             task "test${platform.arch.capitalize()}${platform.name.capitalize()}Jar"(group: "build (${platform.arch})", type: LazyExec, dependsOn: [validateInputs, "${platform.arch}${platform.name.capitalize()}Jar"]) {
@@ -207,7 +207,7 @@ project(':debian-platforms') {
                 from tasks.getByName("build${platform.arch.capitalize()}DebianBundle")
                 include "postgres-linux-debian.txz"
                 rename "postgres-linux-debian.txz", "postgres-linux-${normalizeArchName(platform.arch)}.txz"
-                appendix = "linux-${platform.arch}"
+                archiveAppendix = "linux-${platform.arch}"
             }
 
             task "test${platform.arch.capitalize()}DebianJar"(group: "build (${platform.arch})", type: LazyExec, dependsOn: [validateInputs, prepareQemuExecutables, "${platform.arch}DebianJar"]) {
@@ -262,7 +262,7 @@ alpineVariants.each { variant ->
                     from tasks.getByName("build${platform.arch.capitalize()}Alpine${variant.name.capitalize()}Bundle")
                     include "postgres-linux-alpine_linux.txz"
                     rename "postgres-linux-alpine_linux.txz", "postgres-linux-${normalizeArchName(platform.arch)}-alpine_linux.txz"
-                    appendix = "linux-${platform.arch}-alpine${variant.name ? '-' + variant.name : ''}"
+                    archiveAppendix = "linux-${platform.arch}-alpine${variant.name ? '-' + variant.name : ''}"
                 }
 
                 task "test${platform.arch.capitalize()}Alpine${variant.name.capitalize()}Jar"(group: "build (${platform.arch})", type: LazyExec, dependsOn: [validateInputs, prepareQemuExecutables, "${platform.arch}Alpine${variant.name.capitalize()}Jar"]) {
@@ -327,7 +327,7 @@ project(':custom-debian-platform') {
             from buildCustomDebianBundle
             include "postgres-linux-debian.txz"
             rename "postgres-linux-debian.txz", "postgres-linux-${normalizeArchName(archName)}.txz"
-            appendix = "linux-${archName}"
+            archiveAppendix = "linux-${archName}"
         }
 
         task testCustomDebianJar(group: 'build (custom)', type: LazyExec, dependsOn: [validateInputs, prepareQemuExecutables, customDebianJar]) {
@@ -393,7 +393,7 @@ alpineVariants.each { variant ->
 
                 include "postgres-linux-alpine_linux.txz"
                 rename "postgres-linux-alpine_linux.txz", "postgres-linux-${normalizeArchName(archName)}-alpine_linux.txz"
-                appendix = "linux-${archName}-alpine${variant.name ? '-' + variant.name : ''}"
+                archiveAppendix = "linux-${archName}-alpine${variant.name ? '-' + variant.name : ''}"
             }
 
             task "testCustomAlpine${variant.name.capitalize()}Jar"(group: 'build (custom)', type: LazyExec, dependsOn: [validateInputs, prepareQemuExecutables, "customAlpine${variant.name.capitalize()}Jar"]) {
@@ -422,12 +422,12 @@ alpineVariants.each { variant ->
 subprojects {
     task sourcesJar(type: Jar, dependsOn: classes) {
         from sourceSets.main.allSource
-        classifier = 'sources'
+        archiveClassifier = 'sources'
     }
 
     task javadocJar(type: Jar, dependsOn: javadoc) {
         from javadoc.destinationDir
-        classifier = 'javadoc'
+        archiveClassifier = 'javadoc'
     }
 
     publishing {

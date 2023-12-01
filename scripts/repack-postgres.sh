@@ -95,6 +95,7 @@ if [ "$PLATFORM_NAME" = "darwin" ] ; then
     $([ -f lib/libkrb5support.dylib ] && echo lib/libkrb5support.*.*.dylib || echo ) \
     $([ -f lib/libk5crypto.dylib ] && echo lib/libk5crypto.*.*.dylib || echo ) \
     $([ -f lib/libcom_err.dylib ] && echo lib/libcom_err.*.*.dylib || echo ) \
+    $([ -f lib/libintl.dylib ] && echo lib/libintl.*.dylib || echo ) \
     $([ -f opt/local/lib/libncurses.6.dylib ] && echo opt || echo ) \
     lib/libz*.dylib \
     lib/libpq*.dylib \

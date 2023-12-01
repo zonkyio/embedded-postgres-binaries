@@ -21,7 +21,7 @@ jobs:
           MILESTONE_VERSION: ${{ github.event.milestone.title }}
         run: |
           echo "RELEASE_VERSION=$MILESTONE_VERSION" >> $GITHUB_ENV
-          echo "POSTGRES_VERSION=${MILESTONE_VERSION%'.0'}" >> $GITHUB_ENV
+          echo "POSTGRES_VERSION=${MILESTONE_VERSION%.*}" >> $GITHUB_ENV
       - name: Register QEMU
         run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
       - name: Build Bundle
@@ -49,7 +49,7 @@ jobs:
           MILESTONE_VERSION: ${{ github.event.milestone.title }}
         run: |
           echo "RELEASE_VERSION=$MILESTONE_VERSION" >> $GITHUB_ENV
-          echo "POSTGRES_VERSION=${MILESTONE_VERSION%'.0'}" >> $GITHUB_ENV
+          echo "POSTGRES_VERSION=${MILESTONE_VERSION%.*}" >> $GITHUB_ENV
       - name: Register QEMU
         run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
       - name: Build Bundle
@@ -77,7 +77,7 @@ jobs:
           MILESTONE_VERSION: ${{ github.event.milestone.title }}
         run: |
           echo "RELEASE_VERSION=$MILESTONE_VERSION" >> $GITHUB_ENV
-          echo "POSTGRES_VERSION=${MILESTONE_VERSION%'.0'}" >> $GITHUB_ENV
+          echo "POSTGRES_VERSION=${MILESTONE_VERSION%.*}" >> $GITHUB_ENV
       - name: Register QEMU
         run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
       - name: Build Bundle
@@ -105,7 +105,7 @@ jobs:
           MILESTONE_VERSION: ${{ github.event.milestone.title }}
         run: |
           echo "RELEASE_VERSION=$MILESTONE_VERSION" >> $GITHUB_ENV
-          echo "POSTGRES_VERSION=${MILESTONE_VERSION%'.0'}" >> $GITHUB_ENV
+          echo "POSTGRES_VERSION=${MILESTONE_VERSION%.*}" >> $GITHUB_ENV
       - name: Register QEMU
         run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
       - name: Build Bundle
@@ -133,7 +133,7 @@ jobs:
           MILESTONE_VERSION: ${{ github.event.milestone.title }}
         run: |
           echo "RELEASE_VERSION=$MILESTONE_VERSION" >> $GITHUB_ENV
-          echo "POSTGRES_VERSION=${MILESTONE_VERSION%'.0'}" >> $GITHUB_ENV
+          echo "POSTGRES_VERSION=${MILESTONE_VERSION%.*}" >> $GITHUB_ENV
       - name: Register QEMU
         run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
       - name: Build Bundle
@@ -161,7 +161,7 @@ jobs:
           MILESTONE_VERSION: ${{ github.event.milestone.title }}
         run: |
           echo "RELEASE_VERSION=$MILESTONE_VERSION" >> $GITHUB_ENV
-          echo "POSTGRES_VERSION=${MILESTONE_VERSION%'.0'}" >> $GITHUB_ENV
+          echo "POSTGRES_VERSION=${MILESTONE_VERSION%.*}" >> $GITHUB_ENV
       - name: Register QEMU
         run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
       - name: Build Bundle
@@ -190,7 +190,7 @@ jobs:
           MILESTONE_VERSION: ${{ github.event.milestone.title }}
         run: |
           echo "RELEASE_VERSION=$MILESTONE_VERSION" >> $GITHUB_ENV
-          echo "POSTGRES_VERSION=${MILESTONE_VERSION%'.0'}" >> $GITHUB_ENV
+          echo "POSTGRES_VERSION=${MILESTONE_VERSION%.*}" >> $GITHUB_ENV
       - name: Register QEMU
         run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
       - name: Build Bundle
@@ -219,7 +219,7 @@ jobs:
           MILESTONE_VERSION: ${{ github.event.milestone.title }}
         run: |
           echo "RELEASE_VERSION=$MILESTONE_VERSION" >> $GITHUB_ENV
-          echo "POSTGRES_VERSION=${MILESTONE_VERSION%'.0'}" >> $GITHUB_ENV
+          echo "POSTGRES_VERSION=${MILESTONE_VERSION%.*}" >> $GITHUB_ENV
       - name: Register QEMU
         run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
       - name: Build Bundle
@@ -248,7 +248,7 @@ jobs:
           MILESTONE_VERSION: ${{ github.event.milestone.title }}
         run: |
           echo "RELEASE_VERSION=$MILESTONE_VERSION" >> $GITHUB_ENV
-          echo "POSTGRES_VERSION=${MILESTONE_VERSION%'.0'}" >> $GITHUB_ENV
+          echo "POSTGRES_VERSION=${MILESTONE_VERSION%.*}" >> $GITHUB_ENV
       - name: Register QEMU
         run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
       - name: Build Bundle
@@ -282,7 +282,7 @@ jobs:
           MILESTONE_VERSION: ${{ github.event.milestone.title }}
         run: |
           echo "RELEASE_VERSION=$MILESTONE_VERSION" >> $GITHUB_ENV
-          echo "POSTGRES_VERSION=${MILESTONE_VERSION%'.0'}" >> $GITHUB_ENV
+          echo "POSTGRES_VERSION=${MILESTONE_VERSION%.*}" >> $GITHUB_ENV
       - name: Download bundle - arm32v7Debian
         uses: actions/download-artifact@v2
         with:

@@ -24,7 +24,7 @@ However, with a little effort, the embedded binaries can also be integrated with
 * Embedded PostgreSQL 11+ binaries even for Linux platform
 * Configurable version of PostgreSQL binaries
 
-## Projects using embedded binaries
+## Projects using the embedded binaries
 
 * [zonkyio/embedded-database-spring-test](https://github.com/zonkyio/embedded-database-spring-test) (Java - Spring)
 * [zonkyio/embedded-postgres](https://github.com/zonkyio/embedded-postgres) (Java)
@@ -35,7 +35,7 @@ However, with a little effort, the embedded binaries can also be integrated with
 
 ## Postgres version
 
-The version of the postgres binaries can be managed by importing `embedded-postgres-binaries-bom` in a required version into your dependency management section.
+The version of the postgres binaries can be managed by importing `embedded-postgres-binaries-bom` in a required version in your dependency management section.
 
 ```xml
 <dependencyManagement>
@@ -43,7 +43,7 @@ The version of the postgres binaries can be managed by importing `embedded-postg
         <dependency>
             <groupId>io.zonky.test.postgres</groupId>
             <artifactId>embedded-postgres-binaries-bom</artifactId>
-            <version>13.2.0</version>
+            <version>16.0.0</version>
             <type>pom</type>
             <scope>import</scope>
         </dependency>
@@ -69,9 +69,7 @@ Support for other architectures can be enabled by adding the corresponding Maven
 **Supported platforms:** `Darwin`, `Windows`, `Linux`, `Alpine Linux`  
 **Supported architectures:** `amd64`, `i386`, `arm32v6`, `arm32v7`, `arm64v8`, `ppc64le`
 
-Note that not all architectures are supported by all platforms, look here for an exhaustive list of all available artifacts: https://mvnrepository.com/artifact/io.zonky.test.postgres
-  
-Since `PostgreSQL 10.0`, there are additional artifacts with `alpine-lite` suffix. These artifacts contain postgres binaries for Alpine Linux with disabled [ICU support](https://blog.2ndquadrant.com/icu-support-postgresql-10/) for further size reduction.
+Note that not all architectures are supported by all platforms, you can find an exhaustive list of all available artifacts here: https://mvnrepository.com/artifact/io.zonky.test.postgres
 
 ## Building from Source
 The project uses a [Gradle](http://gradle.org)-based build system. In the instructions

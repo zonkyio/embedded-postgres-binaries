@@ -29,6 +29,7 @@ CREATE TABLE @extschema@.part_config (
     , constraint_valid boolean DEFAULT true NOT NULL
     , subscription_refresh text
     , drop_cascade_fk BOOLEAN NOT NULL DEFAULT false
+    , ignore_default_data boolean NOT NULL DEFAULT false
     , CONSTRAINT part_config_parent_table_pkey PRIMARY KEY (parent_table)
     , CONSTRAINT positive_premake_check CHECK (premake > 0)
     , CONSTRAINT publications_no_empty_set_chk CHECK (publications <> '{}')
@@ -64,6 +65,7 @@ CREATE TABLE @extschema@.part_config_sub (
     , sub_constraint_valid boolean DEFAULT true NOT NULL
     , sub_subscription_refresh text
     , sub_date_trunc_interval TEXT
+    , sub_ignore_default_data boolean NOT NULL DEFAULT false
     , CONSTRAINT part_config_sub_pkey PRIMARY KEY (sub_parent)
     , CONSTRAINT part_config_sub_sub_parent_fkey FOREIGN KEY (sub_parent) REFERENCES @extschema@.part_config (parent_table) ON DELETE CASCADE ON UPDATE CASCADE DEFERRABLE INITIALLY DEFERRED
     , CONSTRAINT positive_premake_check CHECK (sub_premake > 0)
@@ -150,10 +152,11 @@ CREATE FUNCTION @extschema@.check_epoch_type (p_type text) RETURNS boolean
 DECLARE
 v_result    boolean;
 BEGIN
-    SELECT p_type IN ('none', 'seconds', 'milliseconds') INTO v_result;
+    SELECT p_type IN ('none', 'seconds', 'milliseconds', 'nanoseconds') INTO v_result;
     RETURN v_result;
 END
 $$;
+
 
 ALTER TABLE @extschema@.part_config
 ADD CONSTRAINT part_config_epoch_check 
@@ -167,7 +170,7 @@ CHECK (@extschema@.check_epoch_type(sub_epoch));
 /*
  * Check for valid config table partition types
  */
-CREATE OR REPLACE FUNCTION @extschema@.check_partition_type (p_type text) RETURNS boolean
+CREATE FUNCTION @extschema@.check_partition_type (p_type text) RETURNS boolean
     LANGUAGE plpgsql IMMUTABLE SECURITY DEFINER
     SET search_path TO pg_catalog, pg_temp
     AS $$
@@ -193,7 +196,6 @@ CREATE FUNCTION @extschema@.apply_cluster(p_parent_schema text, p_parent_tablena
     LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_new_search_path   text := '@extschema@,pg_temp';
     v_old_search_path   text;
     v_parent_indexdef   text;
     v_relkind           char;
@@ -205,9 +207,6 @@ BEGIN
 * Adapted from code fork by https://github.com/dturon/pg_partman
 */
     
-SELECT current_setting('search_path') INTO v_old_search_path;
-EXECUTE format('SELECT set_config(%L, %L, %L)', 'search_path', v_new_search_path, 'false');
-
 SELECT c.relkind INTO v_relkind
 FROM pg_catalog.pg_class c
 JOIN pg_catalog.pg_namespace n ON c.relnamespace = n.oid
@@ -256,8 +255,6 @@ LOOP
     END IF;
 END LOOP;
 
-EXECUTE format('SELECT set_config(%L, %L, %L)', 'search_path', v_old_search_path, 'false');
-
 END;
 $$;
 
@@ -291,7 +288,7 @@ v_last_partition_id             bigint;
 v_last_partition_timestamp      timestamptz;
 v_max_id                        bigint;
 v_max_timestamp                 timestamptz;
-v_new_search_path               text := '@extschema@,pg_temp';
+v_new_search_path               text;
 v_old_search_path               text;
 v_optimize_constraint           int;
 v_parent_schema                 text;
@@ -351,10 +348,15 @@ AND tablename = split_part(v_parent_table, '.', 2)::name;
 SELECT general_type INTO v_control_type FROM @extschema@.check_control_type(v_parent_schema, v_parent_tablename, v_control);
 
 SELECT current_setting('search_path') INTO v_old_search_path;
+IF length(v_old_search_path) > 0 THEN
+   v_new_search_path := '@extschema@,pg_temp,'||v_old_search_path;
+ELSE
+    v_new_search_path := '@extschema@,pg_temp';
+END IF;
 IF v_jobmon THEN
     SELECT nspname INTO v_jobmon_schema FROM pg_catalog.pg_namespace n, pg_catalog.pg_extension e WHERE e.extname = 'pg_jobmon'::name AND e.extnamespace = n.oid;
     IF v_jobmon_schema IS NOT NULL THEN
-        v_new_search_path := '@extschema@,'||v_jobmon_schema||',pg_temp';
+        v_new_search_path := format('%s,%s',v_jobmon_schema, v_new_search_path);
     END IF;
 END IF;
 EXECUTE format('SELECT set_config(%L, %L, %L)', 'search_path', v_new_search_path, 'false');
@@ -532,6 +534,7 @@ v_count             int := 0;
 v_job_id            bigint;
 v_jobmon            text;
 v_jobmon_schema     text;
+v_new_search_path   text;
 v_old_search_path   text;
 v_parent_schema     text;
 v_parent_tablename  text;
@@ -555,7 +558,13 @@ IF v_jobmon THEN
     SELECT nspname INTO v_jobmon_schema FROM pg_catalog.pg_namespace n, pg_catalog.pg_extension e WHERE e.extname = 'pg_jobmon' AND e.extnamespace = n.oid;
     IF v_jobmon_schema IS NOT NULL THEN
         SELECT current_setting('search_path') INTO v_old_search_path;
-        EXECUTE format('SELECT set_config(%L, %L, %L)', 'search_path', '@extschema@,'||v_jobmon_schema, 'false');
+        IF length(v_old_search_path) > 0 THEN
+           v_new_search_path := '@extschema@,pg_temp,'||v_old_search_path;
+        ELSE
+            v_new_search_path := '@extschema@,pg_temp';
+        END IF;
+        v_new_search_path := format('%s,%s',v_jobmon_schema, v_new_search_path);
+        EXECUTE format('SELECT set_config(%L, %L, %L)', 'search_path', v_new_search_path, 'false');
     END IF;
 END IF;
 
@@ -658,7 +667,6 @@ DETAIL: %
 HINT: %', ex_message, ex_context, ex_detail, ex_hint;
 END
 $$;
-
 
 CREATE FUNCTION @extschema@.apply_privileges(p_parent_schema text, p_parent_tablename text, p_child_schema text, p_child_tablename text, p_job_id bigint DEFAULT NULL) RETURNS void
     LANGUAGE plpgsql 
@@ -1122,7 +1130,8 @@ CREATE FUNCTION @extschema@.check_subpart_sameconfig(p_parent_table text)
         , sub_inherit_privileges boolean
         , sub_constraint_valid boolean
         , sub_subscription_refresh text
-        , sub_date_trunc_interval text)
+        , sub_date_trunc_interval text
+        , sub_ignore_default_data boolean)
     LANGUAGE sql STABLE
     SET search_path = @extschema@,pg_temp
 AS $$
@@ -1174,6 +1183,7 @@ AS $$
         , a.sub_constraint_valid
         , a.sub_subscription_refresh
         , a.sub_date_trunc_interval
+        , a.sub_ignore_default_data
     FROM @extschema@.part_config_sub a
     JOIN child_tables b on a.sub_parent = b.tablename;
 $$;
@@ -1276,7 +1286,7 @@ v_last_partition                text;
 v_max                           bigint;
 v_next_partition_id             bigint;
 v_next_partition_name           text;
-v_new_search_path               text := '@extschema@,pg_temp';
+v_new_search_path               text;
 v_old_search_path               text;
 v_optimize_trigger              int;
 v_parent_schema                 text;
@@ -1344,10 +1354,15 @@ IF v_control_type <> 'id' THEN
 END IF;
 
 SELECT current_setting('search_path') INTO v_old_search_path;
+IF length(v_old_search_path) > 0 THEN
+   v_new_search_path := '@extschema@,pg_temp,'||v_old_search_path;
+ELSE
+    v_new_search_path := '@extschema@,pg_temp';
+END IF;
 IF v_jobmon THEN
     SELECT nspname INTO v_jobmon_schema FROM pg_catalog.pg_namespace n, pg_catalog.pg_extension e WHERE e.extname = 'pg_jobmon'::name AND e.extnamespace = n.oid;
     IF v_jobmon_schema IS NOT NULL THEN
-        v_new_search_path := '@extschema@,'||v_jobmon_schema||',pg_temp';
+        v_new_search_path := format('%s,%s',v_jobmon_schema, v_new_search_path);
     END IF;
 END IF;
 EXECUTE format('SELECT set_config(%L, %L, %L)', 'search_path', v_new_search_path, 'false');
@@ -1555,7 +1570,6 @@ HINT: %', ex_message, ex_context, ex_detail, ex_hint;
 END
 $$;
 
-
 CREATE FUNCTION @extschema@.create_function_time(p_parent_table text, p_job_id bigint DEFAULT NULL) RETURNS void
     LANGUAGE plpgsql 
     AS $$
@@ -1578,7 +1592,7 @@ v_infinite_time_partitions      boolean;
 v_job_id                        bigint;
 v_jobmon                        boolean;
 v_jobmon_schema                 text;
-v_new_search_path               text := '@extschema@,pg_temp';
+v_new_search_path               text;
 v_old_search_path               text;
 v_new_length                    int;
 v_next_partition_name           text;
@@ -1655,10 +1669,15 @@ IF v_control_type <> 'time' THEN
 END IF;
 
 SELECT current_setting('search_path') INTO v_old_search_path;
+IF length(v_old_search_path) > 0 THEN
+   v_new_search_path := '@extschema@,pg_temp,'||v_old_search_path;
+ELSE
+    v_new_search_path := '@extschema@,pg_temp';
+END IF;
 IF v_jobmon THEN
     SELECT nspname INTO v_jobmon_schema FROM pg_catalog.pg_namespace n, pg_catalog.pg_extension e WHERE e.extname = 'pg_jobmon'::name AND e.extnamespace = n.oid;
     IF v_jobmon_schema IS NOT NULL THEN
-        v_new_search_path := '@extschema@,'||v_jobmon_schema||',pg_temp';
+        v_new_search_path := format('%s,%s',v_jobmon_schema, v_new_search_path);
     END IF;
 END IF;
 EXECUTE format('SELECT set_config(%L, %L, %L)', 'search_path', v_new_search_path, 'false');
@@ -1683,6 +1702,7 @@ ELSE
     v_partition_expression := CASE
         WHEN v_epoch = 'seconds' THEN format('to_timestamp(%I)', v_control)
         WHEN v_epoch = 'milliseconds' THEN format('to_timestamp((%I/1000)::float)', v_control)
+        WHEN v_epoch = 'nanoseconds' THEN format('to_timestamp((%I/1000000000)::float)', v_control)
         ELSE format('%I', v_control)
     END;
 
@@ -1708,6 +1728,7 @@ END IF; -- end infinite time check
 v_partition_expression := CASE
     WHEN v_epoch = 'seconds' THEN format('to_timestamp(NEW.%I)', v_control)
     WHEN v_epoch = 'milliseconds' THEN format('to_timestamp((NEW.%I/1000)::float)', v_control)
+    WHEN v_epoch = 'nanoseconds' THEN format('to_timestamp((NEW.%I/1000000000)::float)', v_control)
     ELSE format('NEW.%I', v_control)
 END;
 
@@ -1934,7 +1955,6 @@ HINT: %', ex_message, ex_context, ex_detail, ex_hint;
 END
 $$;
 
-
 CREATE FUNCTION @extschema@.create_parent(
     p_parent_table text
     , p_control text
@@ -1981,7 +2001,7 @@ v_last_partition_created        boolean;
 v_max                           bigint;
 v_native_sub_control            text;
 v_notnull                       boolean;
-v_new_search_path               text := '@extschema@,pg_temp';
+v_new_search_path               text;
 v_old_search_path               text;
 v_parent_owner                  text;
 v_parent_partition_id           bigint;
@@ -2017,8 +2037,10 @@ BEGIN
  * Function to turn a table into the parent of a partition set
  */
 
-IF position('.' in p_parent_table) = 0  THEN
+IF array_length(string_to_array(p_parent_table, '.'), 1) < 2 THEN
     RAISE EXCEPTION 'Parent table must be schema qualified';
+ELSIF array_length(string_to_array(p_parent_table, '.'), 1) > 2 THEN
+    RAISE EXCEPTION 'pg_partman does not support objects with periods in their names';
 END IF;
 
 IF p_upsert <> '' THEN
@@ -2179,10 +2201,15 @@ ELSE
 END IF;
 
 SELECT current_setting('search_path') INTO v_old_search_path;
+IF length(v_old_search_path) > 0 THEN
+   v_new_search_path := '@extschema@,pg_temp,'||v_old_search_path;
+ELSE
+    v_new_search_path := '@extschema@,pg_temp';
+END IF;
 IF p_jobmon THEN
     SELECT nspname INTO v_jobmon_schema FROM pg_catalog.pg_namespace n, pg_catalog.pg_extension e WHERE e.extname = 'pg_jobmon'::name AND e.extnamespace = n.oid;
     IF v_jobmon_schema IS NOT NULL THEN
-        v_new_search_path := '@extschema@,'||v_jobmon_schema||',pg_temp';
+        v_new_search_path := format('%s,%s',v_jobmon_schema, v_new_search_path);
     END IF;
 END IF;
 EXECUTE format('SELECT set_config(%L, %L, %L)', 'search_path', v_new_search_path, 'false');
@@ -2234,6 +2261,8 @@ FOR v_row IN
         , sub_inherit_privileges
         , sub_constraint_valid
         , sub_subscription_refresh
+        , sub_date_trunc_interval
+        , sub_ignore_default_data
     FROM @extschema@.part_config_sub a
     JOIN sibling_children b on a.sub_parent = b.tablename LIMIT 1
 LOOP
@@ -2261,7 +2290,9 @@ LOOP
         , sub_template_table
         , sub_inherit_privileges
         , sub_constraint_valid
-        , sub_subscription_refresh)
+        , sub_subscription_refresh
+        , sub_date_trunc_interval
+        , sub_ignore_default_data)
     VALUES (
         p_parent_table
         , v_row.sub_partition_type
@@ -2286,7 +2317,9 @@ LOOP
         , v_row.sub_template_table
         , v_row.sub_inherit_privileges
         , v_row.sub_constraint_valid
-        , v_row.sub_subscription_refresh);
+        , v_row.sub_subscription_refresh
+        , v_row.sub_date_trunc_interval
+        , v_row.sub_ignore_default_data);
 
     -- Set this equal to sibling configs so that newly created child table 
     -- privileges are set properly below during initial setup.
@@ -2677,6 +2710,12 @@ IF p_type = 'native' AND current_setting('server_version_num')::int >= 110000 TH
         , v_parent_schema, v_parent_tablename, v_parent_schema, v_default_partition);
     EXECUTE v_sql;
 
+    IF p_publications IS NOT NULL THEN
+        -- NOTE: Native publication inheritance is only supported on PG14+
+        PERFORM @extschema@.apply_publications(p_parent_table, v_parent_schema, v_default_partition);
+    END IF;
+
+
     IF current_setting('server_version_num')::int >= 120000 AND v_parent_tablespace IS NOT NULL THEN
         -- Tablespace managed via inherit_template_properties() call below if PG11 or earliser
         EXECUTE format('ALTER TABLE %I.%I SET TABLESPACE %I', v_parent_schema, v_default_partition, v_parent_tablespace);
@@ -2770,7 +2809,7 @@ v_inherit_privileges    boolean;
 v_job_id                bigint;
 v_jobmon                boolean;
 v_jobmon_schema         text;
-v_new_search_path       text := '@extschema@,pg_temp';
+v_new_search_path       text;
 v_old_search_path       text;
 v_parent_grant          record;
 v_parent_schema         text;
@@ -2835,10 +2874,15 @@ IF v_control_type <> 'id' THEN
 END IF;
 
 SELECT current_setting('search_path') INTO v_old_search_path;
+IF length(v_old_search_path) > 0 THEN
+   v_new_search_path := '@extschema@,pg_temp,'||v_old_search_path;
+ELSE
+    v_new_search_path := '@extschema@,pg_temp';
+END IF;
 IF v_jobmon THEN
     SELECT nspname INTO v_jobmon_schema FROM pg_catalog.pg_namespace n, pg_catalog.pg_extension e WHERE e.extname = 'pg_jobmon'::name AND e.extnamespace = n.oid;
     IF v_jobmon_schema IS NOT NULL THEN
-        v_new_search_path := '@extschema@,'||v_jobmon_schema||',pg_temp';
+        v_new_search_path := format('%s,%s',v_jobmon_schema, v_new_search_path);
     END IF;
 END IF;
 EXECUTE format('SELECT set_config(%L, %L, %L)', 'search_path', v_new_search_path, 'false');
@@ -3016,6 +3060,7 @@ FOREACH v_id IN ARRAY p_partition_ids LOOP
             , sub_constraint_valid
             , sub_subscription_refresh
             , sub_date_trunc_interval
+            , sub_ignore_default_data
         FROM @extschema@.part_config_sub
         WHERE sub_parent = p_parent_table
     LOOP
@@ -3065,6 +3110,7 @@ FOREACH v_id IN ARRAY p_partition_ids LOOP
             , trigger_return_null = v_row.sub_trigger_return_null
             , constraint_valid = v_row.sub_constraint_valid
             , subscription_refresh = v_row.sub_subscription_refresh
+            , ignore_default_data = v_row.sub_ignore_default_data
         WHERE parent_table = v_parent_schema||'.'||v_partition_name;
 
         IF v_jobmon_schema IS NOT NULL THEN
@@ -3077,7 +3123,7 @@ FOREACH v_id IN ARRAY p_partition_ids LOOP
     PERFORM @extschema@.apply_constraints(p_parent_table, p_job_id := v_job_id);
 
     IF v_publications IS NOT NULL THEN
-        -- NOTE: Publications currently not supported on parent table, but are supported on the table partitions if individually assigned.
+        -- NOTE: Native publication inheritance is only supported on PG14+
         PERFORM @extschema@.apply_publications(p_parent_table, v_parent_schema, v_partition_name);
     END IF;
 
@@ -3159,7 +3205,7 @@ v_inherit_fk                    boolean;
 v_job_id                        bigint;
 v_jobmon                        boolean;
 v_jobmon_schema                 text;
-v_new_search_path               text := '@extschema@,pg_temp';
+v_new_search_path               text;
 v_old_search_path               text;
 v_parent_grant                  record;
 v_parent_schema                 text;
@@ -3240,10 +3286,15 @@ IF v_control_type <> 'time' THEN
 END IF;
 
 SELECT current_setting('search_path') INTO v_old_search_path;
+IF length(v_old_search_path) > 0 THEN
+   v_new_search_path := '@extschema@,pg_temp,'||v_old_search_path;
+ELSE
+    v_new_search_path := '@extschema@,pg_temp';
+END IF;
 IF v_jobmon THEN
     SELECT nspname INTO v_jobmon_schema FROM pg_catalog.pg_namespace n, pg_catalog.pg_extension e WHERE e.extname = 'pg_jobmon'::name AND e.extnamespace = n.oid;
     IF v_jobmon_schema IS NOT NULL THEN
-        v_new_search_path := '@extschema@,'||v_jobmon_schema||',pg_temp';
+        v_new_search_path := format('%s,%s',v_jobmon_schema, v_new_search_path);
     END IF;
 END IF;
 EXECUTE format('SELECT set_config(%L, %L, %L)', 'search_path', v_new_search_path, 'false');
@@ -3258,6 +3309,7 @@ END IF;
 v_partition_expression := CASE
     WHEN v_epoch = 'seconds' THEN format('to_timestamp(%I)', v_control)
     WHEN v_epoch = 'milliseconds' THEN format('to_timestamp((%I/1000)::float)', v_control)
+    WHEN v_epoch = 'nanoseconds' THEN format('to_timestamp((%I/1000000000)::float)', v_control)
     ELSE format('%I', v_control)
 END;
 RAISE DEBUG 'create_partition_time: v_partition_expression: %', v_partition_expression;
@@ -3405,6 +3457,14 @@ FOREACH v_time IN ARRAY p_partition_times LOOP
                     , v_partition_name
                     , EXTRACT('epoch' FROM v_partition_timestamp_start)::bigint * 1000
                     , EXTRACT('epoch' FROM v_partition_timestamp_end)::bigint * 1000);
+            ELSIF v_epoch = 'nanoseconds' THEN
+                EXECUTE format('ALTER TABLE %I.%I ATTACH PARTITION %I.%I FOR VALUES FROM (%L) TO (%L)'
+                    , v_parent_schema
+                    , v_parent_tablename
+                    , v_parent_schema
+                    , v_partition_name
+                    , EXTRACT('epoch' FROM v_partition_timestamp_start)::bigint * 1000000000
+                    , EXTRACT('epoch' FROM v_partition_timestamp_end)::bigint * 1000000000);
             END IF;
             -- Create secondary, time-based constraint since native's constraint is already integer based
             EXECUTE format('ALTER TABLE %I.%I ADD CONSTRAINT %I CHECK (%s >= %L AND %4$s < %6$L)'
@@ -3448,6 +3508,15 @@ FOREACH v_time IN ARRAY p_partition_times LOOP
                             , EXTRACT('epoch' from v_partition_timestamp_start)::bigint * 1000
                             , v_control
                             , EXTRACT('epoch' from v_partition_timestamp_end)::bigint * 1000);
+        ELSIF v_epoch = 'nanoseconds' THEN
+            EXECUTE format('ALTER TABLE %I.%I ADD CONSTRAINT %I CHECK (%I >= %L AND %I < %L)'
+                            , v_parent_schema
+                            , v_partition_name
+                            , v_partition_name||'_partition_int_check'
+                            , v_control
+                            , EXTRACT('epoch' from v_partition_timestamp_start)::bigint * 1000000000
+                            , v_control
+                            , EXTRACT('epoch' from v_partition_timestamp_end)::bigint * 1000000000);
         END IF;
 
         EXECUTE format('ALTER TABLE %I.%I INHERIT %I.%I'
@@ -3511,6 +3580,7 @@ FOREACH v_time IN ARRAY p_partition_times LOOP
             , sub_constraint_valid
             , sub_subscription_refresh
             , sub_date_trunc_interval
+            , sub_ignore_default_data
         FROM @extschema@.part_config_sub
         WHERE sub_parent = p_parent_table
     LOOP
@@ -3561,6 +3631,7 @@ FOREACH v_time IN ARRAY p_partition_times LOOP
             , trigger_return_null = v_row.sub_trigger_return_null
             , constraint_valid = v_row.sub_constraint_valid
             , subscription_refresh = v_row.sub_subscription_refresh
+            , ignore_default_data = v_row.sub_ignore_default_data
         WHERE parent_table = v_parent_schema||'.'||v_partition_name;
 
     END LOOP; -- end sub partitioning LOOP
@@ -3569,7 +3640,7 @@ FOREACH v_time IN ARRAY p_partition_times LOOP
     PERFORM @extschema@.apply_constraints(p_parent_table, p_job_id := v_job_id);
 
     IF v_publications IS NOT NULL THEN
-        -- NOTE: Publications currently not supported on parent table, but are supported on the table partitions if individually assigned.
+        -- NOTE: Native publication inheritance is only supported on PG14+
         PERFORM @extschema@.apply_publications(p_parent_table, v_parent_schema, v_partition_name);
     END IF;
 
@@ -3657,8 +3728,6 @@ v_control               text;
 v_control_parent_type   text;
 v_control_sub_type      text;
 v_last_partition        text;
-v_new_search_path       text := '@extschema@,pg_temp';
-v_old_search_path       text;
 v_parent_epoch          text;
 v_parent_interval       text;
 v_parent_relkind        char;
@@ -3725,9 +3794,6 @@ IF p_upsert <> '' THEN
 END IF;
 
 SELECT general_type INTO v_control_parent_type FROM @extschema@.check_control_type(v_parent_schema, v_parent_tablename, v_control);
-
-SELECT current_setting('search_path') INTO v_old_search_path;
-EXECUTE format('SELECT set_config(%L, %L, %L)', 'search_path', v_new_search_path, 'false');
 
 -- Add the given parameters to the part_config_sub table first in case create_partition_* functions are called below 
 -- All sub-partition parents must use the same template table for native partitioning, so ensure the one from the given parent is obtained and used.
@@ -3803,18 +3869,15 @@ LOOP
         END CASE;
 
         IF v_child_interval >= v_parent_interval::interval THEN
-            EXECUTE format('SELECT set_config(%L, %L, %L)', 'search_path', v_old_search_path, 'false');
             RAISE EXCEPTION 'Sub-partition interval cannot be greater than or equal to the given parent interval';
         END IF;
         IF (v_child_interval = '1 week' AND v_parent_interval::interval > '1 week'::interval)
             OR (p_date_trunc_interval = 'week') THEN
-            EXECUTE format('SELECT set_config(%L, %L, %L)', 'search_path', v_old_search_path, 'false');
             RAISE EXCEPTION 'Due to conflicting data boundaries between ISO weeks and any larger interval of time, pg_partman cannot support a sub-partition interval of weekly time periods';
         END IF;
 
     ELSIF v_control_parent_type = 'id' AND v_control_sub_type = 'id' AND v_parent_epoch = 'none' AND p_epoch = 'none' THEN
         IF p_interval::bigint >= v_parent_interval::bigint THEN
-            EXECUTE format('SELECT set_config(%L, %L, %L)', 'search_path', v_old_search_path, 'false');
             RAISE EXCEPTION 'Sub-partition interval cannot be greater than or equal to the given parent interval';
         END IF;
     END IF;
@@ -3900,21 +3963,17 @@ END LOOP;
 
 v_success := true;
 
-EXECUTE format('SELECT set_config(%L, %L, %L)', 'search_path', v_old_search_path, 'false');
-
 RETURN v_success;
 
 END
 $$;
 
-CREATE OR REPLACE FUNCTION @extschema@.create_trigger(p_parent_table text) RETURNS void
+CREATE FUNCTION @extschema@.create_trigger(p_parent_table text) RETURNS void
     LANGUAGE plpgsql
     AS $$
 DECLARE
 
 v_function_name         text;
-v_new_search_path       text := '@extschema@,pg_temp';
-v_old_search_path       text;
 v_parent_schema         text;
 v_parent_tablename      text;
 v_relkind               char;
@@ -3925,9 +3984,6 @@ BEGIN
 /*
  * Function to create partitioning trigger on parent table
  */
-
-SELECT current_setting('search_path') INTO v_old_search_path;
-EXECUTE format('SELECT set_config(%L, %L, %L)', 'search_path', v_new_search_path, 'false');
 
 SELECT n.nspname, c.relname, c.relkind INTO v_parent_schema, v_parent_tablename, v_relkind
 FROM pg_catalog.pg_class c
@@ -3953,8 +4009,6 @@ v_trig_sql := format('CREATE TRIGGER %I BEFORE INSERT ON %I.%I FOR EACH ROW EXEC
 
 EXECUTE v_trig_sql;
 
-EXECUTE format('SELECT set_config(%L, %L, %L)', 'search_path', v_old_search_path, 'false');
-
 END
 $$;
 
@@ -3979,6 +4033,7 @@ v_exists                        boolean := FALSE;
 v_job_id                        bigint;
 v_jobmon                        boolean;
 v_jobmon_schema                 text;
+v_new_search_path               text;
 v_old_search_path               text;
 v_sql                           text;
 v_step_id                       bigint;
@@ -4000,7 +4055,13 @@ IF v_jobmon THEN
     SELECT nspname INTO v_jobmon_schema FROM pg_catalog.pg_namespace n, pg_catalog.pg_extension e WHERE e.extname = 'pg_jobmon' AND e.extnamespace = n.oid;
     IF v_jobmon_schema IS NOT NULL THEN
         SELECT current_setting('search_path') INTO v_old_search_path;
-        EXECUTE format('SELECT set_config(%L, %L, %L)', 'search_path', '@extschema@,'||v_jobmon_schema, 'false');
+        IF length(v_old_search_path) > 0 THEN
+           v_new_search_path := '@extschema@,pg_temp,'||v_old_search_path;
+        ELSE
+            v_new_search_path := '@extschema@,pg_temp';
+        END IF;
+        v_new_search_path := format('%s,%s',v_jobmon_schema, v_new_search_path);
+        EXECUTE format('SELECT set_config(%L, %L, %L)', 'search_path', v_new_search_path, 'false');
     END IF;
 END IF;
 
@@ -4147,7 +4208,7 @@ v_job_id                    bigint;
 v_jobmon                    boolean;
 v_jobmon_schema             text;
 v_max                       bigint;
-v_new_search_path           text := '@extschema@,pg_temp';
+v_new_search_path           text;
 v_old_search_path           text;
 v_parent_schema             text;
 v_parent_tablename          text;
@@ -4238,10 +4299,15 @@ IF v_control_type <> 'id' THEN
 END IF;
 
 SELECT current_setting('search_path') INTO v_old_search_path;
+IF length(v_old_search_path) > 0 THEN
+   v_new_search_path := '@extschema@,pg_temp,'||v_old_search_path;
+ELSE
+    v_new_search_path := '@extschema@,pg_temp';
+END IF;
 IF v_jobmon THEN
     SELECT nspname INTO v_jobmon_schema FROM pg_catalog.pg_namespace n, pg_catalog.pg_extension e WHERE e.extname = 'pg_jobmon'::name AND e.extnamespace = n.oid;
     IF v_jobmon_schema IS NOT NULL THEN
-        v_new_search_path := '@extschema@,'||v_jobmon_schema||',pg_temp';
+        v_new_search_path := format('%s,%s',v_jobmon_schema, v_new_search_path);
     END IF;
 END IF;
 EXECUTE format('SELECT set_config(%L, %L, %L)', 'search_path', v_new_search_path, 'false');
@@ -4302,15 +4368,16 @@ LOOP
             v_step_id := add_step(v_job_id, format('Detach/Uninherit table %s.%s from %s', v_row.partition_schemaname, v_row.partition_tablename, p_parent_table));
         END IF;
 
-        IF v_retention_keep_table = true THEN
+        IF v_retention_keep_table = true OR v_retention_schema IS NOT NULL THEN
             -- No need to detach partition before dropping since it's going away anyway
             -- Avoids issue of FKs not allowing detachment (Github Issue #294).
             IF v_partition_type = 'native' THEN
-                EXECUTE format('ALTER TABLE %I.%I DETACH PARTITION %I.%I'
+                v_sql := format('ALTER TABLE %I.%I DETACH PARTITION %I.%I'
                     , v_parent_schema
                     , v_parent_tablename
                     , v_row.partition_schemaname
                     , v_row.partition_tablename);
+                EXECUTE v_sql;
             ELSE
                 EXECUTE format('ALTER TABLE %I.%I NO INHERIT %I.%I'
                     , v_row.partition_schemaname
@@ -4433,6 +4500,7 @@ HINT: %', ex_message, ex_context, ex_detail, ex_hint;
 END
 $$;
 
+
 CREATE FUNCTION @extschema@.drop_partition_time(p_parent_table text, p_retention interval DEFAULT NULL, p_keep_table boolean DEFAULT NULL, p_keep_index boolean DEFAULT NULL, p_retention_schema text DEFAULT NULL, p_reference_timestamp timestamptz DEFAULT CURRENT_TIMESTAMP) RETURNS int
     LANGUAGE plpgsql
     AS $$
@@ -4454,7 +4522,7 @@ v_index                     record;
 v_job_id                    bigint;
 v_jobmon                    boolean;
 v_jobmon_schema             text;
-v_new_search_path           text := '@extschema@,pg_temp';
+v_new_search_path           text;
 v_old_search_path           text;
 v_parent_schema             text;
 v_parent_tablename          text;
@@ -4492,6 +4560,7 @@ IF p_retention IS NULL THEN
         , retention::interval
         , retention_keep_table
         , retention_keep_index
+        , drop_cascade_fk
         , datetime_string
         , retention_schema
         , jobmon
@@ -4503,6 +4572,7 @@ IF p_retention IS NULL THEN
         , v_retention
         , v_retention_keep_table
         , v_retention_keep_index
+        , v_drop_cascade_fk
         , v_datetime_string
         , v_retention_schema
         , v_jobmon
@@ -4520,6 +4590,7 @@ ELSE
         , epoch
         , retention_keep_table
         , retention_keep_index
+        , drop_cascade_fk
         , datetime_string
         , retention_schema
         , jobmon
@@ -4529,6 +4600,7 @@ ELSE
         , v_epoch
         , v_retention_keep_table
         , v_retention_keep_index
+        , v_drop_cascade_fk
         , v_datetime_string
         , v_retention_schema
         , v_jobmon
@@ -4549,10 +4621,15 @@ IF v_control_type <> 'time' THEN
 END IF;
 
 SELECT current_setting('search_path') INTO v_old_search_path;
+IF length(v_old_search_path) > 0 THEN
+   v_new_search_path := '@extschema@,pg_temp,'||v_old_search_path;
+ELSE
+    v_new_search_path := '@extschema@,pg_temp';
+END IF;
 IF v_jobmon THEN
     SELECT nspname INTO v_jobmon_schema FROM pg_catalog.pg_namespace n, pg_catalog.pg_extension e WHERE e.extname = 'pg_jobmon'::name AND e.extnamespace = n.oid;
     IF v_jobmon_schema IS NOT NULL THEN
-        v_new_search_path := '@extschema@,'||v_jobmon_schema||',pg_temp';
+        v_new_search_path := format('%s,%s',v_jobmon_schema, v_new_search_path);
     END IF;
 END IF;
 EXECUTE format('SELECT set_config(%L, %L, %L)', 'search_path', v_new_search_path, 'false');
@@ -4584,7 +4661,7 @@ LOOP
         , v_partition_interval::text
         , p_parent_table);
     -- Add one interval since partition names contain the start of the constraint period
-    IF v_retention < (p_reference_timestamp - (v_partition_timestamp + v_partition_interval)) THEN
+    IF (v_partition_timestamp + v_partition_interval) < (p_reference_timestamp - v_retention) THEN
 
         -- Do not allow final partition to be dropped if it is not a sub-partition parent
         SELECT count(*) INTO v_count FROM @extschema@.show_partitions(p_parent_table);
@@ -4604,15 +4681,16 @@ LOOP
                                                 , v_row.partition_tablename
                                                 , p_parent_table));
         END IF;
-        IF v_retention_keep_table = true THEN
+        IF v_retention_keep_table = true OR v_retention_schema IS NOT NULL THEN
             -- No need to detach partition before dropping since it's going away anyway
             -- Avoids issue of FKs not allowing detachment (Github Issue #294).
             IF v_partition_type = 'native' THEN
-                EXECUTE format('ALTER TABLE %I.%I DETACH PARTITION %I.%I'
+                v_sql := format('ALTER TABLE %I.%I DETACH PARTITION %I.%I'
                     , v_parent_schema
                     , v_parent_tablename
                     , v_row.partition_schemaname
                     , v_row.partition_tablename);
+                EXECUTE v_sql;
             ELSE
                 EXECUTE format('ALTER TABLE %I.%I NO INHERIT %I.%I'
                         , v_row.partition_schemaname
@@ -4738,6 +4816,7 @@ DETAIL: %
 HINT: %', ex_message, ex_context, ex_detail, ex_hint;
 END
 $$;
+
 CREATE FUNCTION @extschema@.dump_partitioned_table_definition(
   p_parent_table TEXT,
   p_ignore_template_table BOOLEAN DEFAULT false
@@ -4776,6 +4855,7 @@ DECLARE
   v_constraint_valid BOOLEAN; -- DEFAULT true NOT NULL
   v_subscription_refresh text; 
   v_drop_cascade_fk boolean; -- DEFAULT false NOT NULL
+  v_ignore_default_data boolean; -- DEFAULT false NOT NULL
 BEGIN
   SELECT
     pc.parent_table,
@@ -4805,7 +4885,8 @@ BEGIN
     pc.inherit_privileges,
     pc.constraint_valid, 
     pc.subscription_refresh,
-    pc.drop_cascade_fk
+    pc.drop_cascade_fk,
+    pc.ignore_default_data 
   INTO
     v_parent_table,
     v_control,
@@ -4834,7 +4915,8 @@ BEGIN
     v_inherit_privileges,
     v_constraint_valid,
     v_subscription_refresh,
-    v_drop_cascade_fk
+    v_drop_cascade_fk,
+    v_ignore_default_data 
   FROM @extschema@.part_config pc
   WHERE pc.parent_table = p_parent_table;
 
@@ -4914,7 +4996,8 @@ E'UPDATE @extschema@.part_config SET
 \ttrigger_exception_handling = %L,
 \tinherit_privileges = %L,
 \tconstraint_valid = %L,
-\tsubscription_refresh = %L
+\tsubscription_refresh = %L,
+\tignore_default_data = %L
 WHERE parent_table = %L;',
     v_optimize_trigger,
     v_optimize_constraint,
@@ -4929,6 +5012,7 @@ WHERE parent_table = %L;',
     v_inherit_privileges,
     v_constraint_valid,
     v_subscription_refresh,
+    v_ignore_default_data,
     v_parent_table
   );
 
@@ -5200,8 +5284,6 @@ v_lock_iter                 int := 1;
 v_lock_obtained             boolean := FALSE;
 v_max_partition_id          bigint;
 v_min_partition_id          bigint;
-v_new_search_path           text := '@extschema@,pg_temp';
-v_old_search_path           text;
 v_parent_tablename          text;
 v_partition_interval        bigint;
 v_partition_id              bigint[];
@@ -5291,9 +5373,6 @@ ELSIF v_partition_type = 'native' AND current_setting('server_version_num')::int
     END IF;
 
 END IF;
-
-SELECT current_setting('search_path') INTO v_old_search_path;
-EXECUTE format('SELECT set_config(%L, %L, %L)', 'search_path', v_new_search_path, 'false');
 
 IF p_batch_interval IS NULL OR p_batch_interval > v_partition_interval THEN
     p_batch_interval := v_partition_interval;
@@ -5406,7 +5485,6 @@ IF v_default_exists THEN
         , v_current_partition_name
         , v_column_list);
 
-
 ELSE
 
     PERFORM @extschema@.create_partition_id(p_parent_table, v_partition_id, p_analyze);
@@ -5435,8 +5513,6 @@ END LOOP;
 IF v_partition_type = 'partman' THEN
     PERFORM @extschema@.create_function_id(p_parent_table);
 END IF;
-
-EXECUTE format('SELECT set_config(%L, %L, %L)', 'search_path', v_old_search_path, 'false');
 
 RETURN v_total_rows;
 
@@ -5472,8 +5548,6 @@ v_lock_iter                 int := 1;
 v_lock_obtained             boolean := FALSE;
 v_max_partition_timestamp   timestamptz;
 v_min_partition_timestamp   timestamptz;
-v_new_search_path           text := '@extschema@,pg_temp';
-v_old_search_path           text;
 v_parent_tablename          text;
 v_parent_tablename_real     text;
 v_partition_expression      text;
@@ -5572,9 +5646,6 @@ ELSIF v_partition_type = 'native' AND current_setting('server_version_num')::int
     END IF;
 END IF;
 
-SELECT current_setting('search_path') INTO v_old_search_path;
-EXECUTE format('SELECT set_config(%L, %L, %L)', 'search_path', v_new_search_path, 'false');
-
 IF p_batch_interval IS NULL OR p_batch_interval > v_partition_interval THEN
     p_batch_interval := v_partition_interval;
 END IF;
@@ -5584,6 +5655,7 @@ SELECT partition_tablename INTO v_last_partition FROM @extschema@.show_partition
 v_partition_expression := CASE
     WHEN v_epoch = 'seconds' THEN format('to_timestamp(%I)', v_control)
     WHEN v_epoch = 'milliseconds' THEN format('to_timestamp((%I/1000)::float)', v_control)
+    WHEN v_epoch = 'nanoseconds' THEN format('to_timestamp((%I/1000000000)::float)', v_control)
     ELSE format('%I', v_control)
 END;
 
@@ -5695,7 +5767,7 @@ FOR i IN 1..p_batch_count LOOP
         WHILE v_lock_iter <= 5 LOOP
             v_lock_iter := v_lock_iter + 1;
             BEGIN
-                EXECUTE format('SELECT %s FROM ONLY %I.%I WHERE %s >= %L AND %3$s < %5$L FOR UPDATE NOWAIT'
+                EXECUTE format('SELECT %s FROM ONLY %I.%I WHERE %s >= %L AND %4$s < %6$L FOR UPDATE NOWAIT'
                     , v_column_list
                     , v_source_schemaname
                     , v_source_tablename
@@ -5771,8 +5843,6 @@ IF v_partition_type IN ('partman', 'time-custom') THEN
     PERFORM @extschema@.create_function_time(p_parent_table);
 END IF;
 
-EXECUTE format('SELECT set_config(%L, %L, %L)', 'search_path', v_old_search_path, 'false');
-
 RETURN v_total_rows;
 
 END
@@ -5789,6 +5859,7 @@ v_control                           text;
 v_control_type                      text;
 v_current_child_start_id            bigint;
 v_current_child_start_timestamp     timestamptz;
+v_epoch                             text;
 v_expected_next_child_id            bigint;
 v_expected_next_child_timestamp     timestamptz;
 v_final_child_schemaname            text;
@@ -5809,8 +5880,8 @@ v_row                               record;
 
 BEGIN
 
-SELECT parent_table, partition_interval, control
-INTO v_parent_table, v_partition_interval, v_control
+SELECT parent_table, partition_interval, control, epoch
+INTO v_parent_table, v_partition_interval, v_control, v_epoch
 FROM @extschema@.part_config
 WHERE parent_table = p_parent_table;
 IF v_parent_table IS NULL THEN
@@ -5833,7 +5904,7 @@ INTO v_final_child_schemaname, v_final_child_tablename
 FROM @extschema@.show_partitions(v_parent_table, 'DESC')
 LIMIT 1;
 
-IF v_control_type = 'time' THEN
+IF v_control_type = 'time'  OR (v_control_type = 'id' AND v_epoch <> 'none') THEN
 
     v_interval_time := v_partition_interval::interval;
 
@@ -5994,7 +6065,7 @@ ex_message          text;
 v_job_id            bigint;
 v_jobmon            boolean;
 v_jobmon_schema     text;
-v_new_search_path   text := '@extschema@,pg_temp';
+v_new_search_path   text;
 v_old_search_path   text;
 v_parent_schema     text;
 v_parent_tablename  text;
@@ -6013,14 +6084,18 @@ IF v_jobmon IS NULL THEN
 END IF;
 
 SELECT current_setting('search_path') INTO v_old_search_path;
+IF length(v_old_search_path) > 0 THEN
+   v_new_search_path := '@extschema@,pg_temp,'||v_old_search_path;
+ELSE
+    v_new_search_path := '@extschema@,pg_temp';
+END IF;
 IF v_jobmon THEN
     SELECT nspname INTO v_jobmon_schema FROM pg_catalog.pg_namespace n, pg_catalog.pg_extension e WHERE e.extname = 'pg_jobmon'::name AND e.extnamespace = n.oid;
     IF v_jobmon_schema IS NOT NULL THEN
-        v_new_search_path := '@extschema@,'||v_jobmon_schema||',pg_temp';
+        v_new_search_path := format('%s,%s',v_jobmon_schema, v_new_search_path);
     END IF;
 END IF;
 EXECUTE format('SELECT set_config(%L, %L, %L)', 'search_path', v_new_search_path, 'false');
-
 
 SELECT schemaname, tablename INTO v_parent_schema, v_parent_tablename
 FROM pg_catalog.pg_tables
@@ -6098,8 +6173,8 @@ v_last_partition_created        boolean;
 v_last_partition_id             bigint;
 v_last_partition_timestamp      timestamptz;
 v_max_id_parent                 bigint;
-v_max_time_default               timestamptz;
-v_new_search_path               text := '@extschema@,pg_temp';
+v_max_time_default              timestamptz;
+v_new_search_path               text;
 v_next_partition_id             bigint;
 v_next_partition_timestamp      timestamptz;
 v_old_search_path               text;
@@ -6148,10 +6223,15 @@ IF v_adv_lock = 'false' THEN
 END IF;
 
 SELECT current_setting('search_path') INTO v_old_search_path;
+IF length(v_old_search_path) > 0 THEN
+   v_new_search_path := '@extschema@,pg_temp,'||v_old_search_path;
+ELSE
+    v_new_search_path := '@extschema@,pg_temp';
+END IF;
 IF p_jobmon THEN
     SELECT nspname INTO v_jobmon_schema FROM pg_catalog.pg_namespace n, pg_catalog.pg_extension e WHERE e.extname = 'pg_jobmon'::name AND e.extnamespace = n.oid;
     IF v_jobmon_schema IS NOT NULL THEN
-        v_new_search_path := '@extschema@,'||v_jobmon_schema||',pg_temp';
+        v_new_search_path := format('%s,%s',v_jobmon_schema, v_new_search_path);
     END IF;
 END IF;
 EXECUTE format('SELECT set_config(%L, %L, %L)', 'search_path', v_new_search_path, 'false');
@@ -6172,6 +6252,7 @@ v_tables_list_sql := 'SELECT parent_table
                 , infinite_time_partitions
                 , retention
                 , subscription_refresh
+                , ignore_default_data
             FROM @extschema@.part_config
             WHERE undo_in_progress = false';
 
@@ -6248,6 +6329,7 @@ LOOP
     v_partition_expression := CASE
         WHEN v_row.epoch = 'seconds' THEN format('to_timestamp(%I)', v_row.control)
         WHEN v_row.epoch = 'milliseconds' THEN format('to_timestamp((%I/1000)::float)', v_row.control)
+        WHEN v_row.epoch = 'nanoseconds' THEN format('to_timestamp((%I/1000000000)::float)', v_row.control)
         ELSE format('%I', v_row.control)
     END;
     RAISE DEBUG 'run_maint: v_partition_expression: %', v_partition_expression;
@@ -6294,8 +6376,12 @@ LOOP
         END IF; -- end infinite time check
 
         -- Check for values in the parent/default table. If they are there and greater than all child values, use that instead
-        -- This allows maintenance to continue working properly if there is a large gap in data insertion. Data will remain in default, but new tables will be created
-        EXECUTE format('SELECT max(%s) FROM ONLY %I.%I', v_partition_expression, v_parent_schema, v_default_tablename) INTO v_max_time_default;
+        -- This option will likely be reverted in 5.x. Data should not remain in the default and maintenance failing because it is should be the default occurance. For now, adding an option to allow users to ignore this and avoid giant gaps in child tables when future data is inserted into the default (Github Issue #462).
+        IF v_row.ignore_default_data THEN 
+            v_max_time_default := NULL;
+        ELSE
+            EXECUTE format('SELECT max(%s) FROM ONLY %I.%I', v_partition_expression, v_parent_schema, v_default_tablename) INTO v_max_time_default;
+        END IF; 
         RAISE DEBUG 'run_maint: v_current_partition_timestamp: %, v_max_time_default: %', v_current_partition_timestamp, v_max_time_default;
         IF v_current_partition_timestamp IS NULL AND v_max_time_default IS NULL THEN 
             -- Partition set is completely empty and infinite time partitions not set
@@ -6500,8 +6586,6 @@ v_control               text;
 v_control_type          text;
 v_datetime_string       text;
 v_epoch                 text;
-v_new_search_path       text := '@extschema@,pg_temp';
-v_old_search_path       text;
 v_parent_table          text;
 v_partition_interval    text;
 v_partition_type        text;
@@ -6518,9 +6602,6 @@ BEGIN
  * Passing an interval lets you set one different than the default configured one if desired.
  */
 
-SELECT current_setting('search_path') INTO v_old_search_path;
-EXECUTE format('SELECT set_config(%L, %L, %L)', 'search_path', v_new_search_path, 'false');
-
 SELECT n.nspname, c.relname INTO v_child_schema, v_child_tablename
 FROM pg_catalog.pg_class c
 JOIN pg_catalog.pg_namespace n ON c.relnamespace = n.oid
@@ -6528,7 +6609,6 @@ WHERE n.nspname = split_part(p_child_table, '.', 1)::name
 AND c.relname = split_part(p_child_table, '.', 2)::name;
 
 IF v_child_tablename IS NULL THEN
-    EXECUTE format('SELECT set_config(%L, %L, %L)', 'search_path', v_old_search_path, 'false');
     RAISE EXCEPTION 'Child table given does not exist (%)', p_child_table;
 END IF;
 
@@ -6588,6 +6668,8 @@ IF v_control_type = 'time' OR (v_control_type = 'id' AND v_epoch <> 'none') THEN
                 child_start_time := to_timestamp(v_start_time_string::double precision);
             ELSIF v_epoch = 'milliseconds' THEN
                 child_start_time := to_timestamp((v_start_time_string::double precision) / 1000);
+            ELSIF v_epoch = 'nanoseconds' THEN
+                child_start_time := to_timestamp((v_start_time_string::double precision) / 1000000000);
             END IF;
         ELSE
             RAISE EXCEPTION 'Unexpected code path in show_partition_info(). Please report this bug with the configuration that lead to it.';
@@ -6627,8 +6709,6 @@ ELSE
 END IF;
 
 suffix = v_suffix;
-
-EXECUTE format('SELECT set_config(%L, %L, %L)', 'search_path', v_old_search_path, 'false');
 
 RETURN;
 
@@ -6978,52 +7058,52 @@ CREATE FUNCTION @extschema@.undo_partition(
     AS $$
 DECLARE
 
-ex_context              text;
-ex_detail               text;
-ex_hint                 text;
-ex_message              text;
-v_adv_lock              boolean;
-v_batch_interval_id     bigint;
-v_batch_interval_time   interval;
-v_batch_loop_count      int := 0;
-v_child_loop_total      bigint := 0;
-v_child_table           text;
-v_col                   text;
-v_column_list           text;
-v_control               text;
-v_control_type          text;
-v_child_min_id          bigint;
-v_child_min_time        timestamptz;
-v_epoch                 text;
-v_function_name         text;
-v_jobmon                boolean;
-v_jobmon_schema         text;
-v_job_id                bigint;
-v_inner_loop_count      int;
-v_lock_iter             int := 1;
-v_lock_obtained         boolean := FALSE;
-v_new_search_path       text;
-v_old_search_path       text;
-v_parent_schema         text;
-v_parent_tablename      text;
-v_partition_expression  text;
-v_partition_interval    text;
-v_partition_type        text;
-v_relkind               char;
-v_row                   record;
-v_rowcount              bigint;
-v_sql                   text;
-v_step_id               bigint;
-v_sub_count             int;
-v_target_schema         text;
-v_target_tablename      text;
-v_template_schema       text;
-v_template_siblings     int;
-v_template_table        text;
-v_template_tablename    text;
-v_total                 bigint := 0;
-v_trig_name             text;
-v_undo_count            int := 0;
+ex_context                      text;
+ex_detail                       text;
+ex_hint                         text;
+ex_message                      text;
+v_adv_lock                      boolean;
+v_batch_interval_id             bigint;
+v_batch_interval_time           interval;
+v_batch_loop_count              int := 0;
+v_child_loop_total              bigint := 0;
+v_child_table                   text;
+v_col                           text;
+v_column_list                   text;
+v_control                       text;
+v_control_type                  text;
+v_child_min_id                  bigint;
+v_child_min_time                timestamptz;
+v_epoch                         text;
+v_function_name                 text;
+v_jobmon                        boolean;
+v_jobmon_schema                 text;
+v_job_id                        bigint;
+v_inner_loop_count              int;
+v_lock_iter                     int := 1;
+v_lock_obtained                 boolean := FALSE;
+v_new_search_path               text;
+v_old_search_path               text;
+v_parent_schema                 text;
+v_parent_tablename              text;
+v_partition_expression          text;
+v_partition_interval            text;
+v_partition_type                text;
+v_relkind                       char;
+v_row                           record;
+v_rowcount                      bigint;
+v_sql                           text;
+v_step_id                       bigint;
+v_sub_count                     int;
+v_target_schema                 text;
+v_target_tablename              text;
+v_template_schema               text;
+v_template_siblings             int;
+v_template_table                text;
+v_template_tablename            text;
+v_total                         bigint := 0;
+v_trig_name                     text;
+v_undo_count                    int := 0;
 
 BEGIN
 /*
@@ -7095,10 +7175,15 @@ ELSE
 END IF;
 
 SELECT current_setting('search_path') INTO v_old_search_path;
+IF length(v_old_search_path) > 0 THEN
+   v_new_search_path := '@extschema@,pg_temp,'||v_old_search_path;
+ELSE
+    v_new_search_path := '@extschema@,pg_temp';
+END IF;
 IF v_jobmon THEN
     SELECT nspname INTO v_jobmon_schema FROM pg_catalog.pg_namespace n, pg_catalog.pg_extension e WHERE e.extname = 'pg_jobmon'::name AND e.extnamespace = n.oid;
     IF v_jobmon_schema IS NOT NULL THEN
-        v_new_search_path := '@extschema@,'||v_jobmon_schema||',pg_temp';
+        v_new_search_path := format('%s,%s',v_jobmon_schema, v_new_search_path);
     END IF;
 END IF;
 EXECUTE format('SELECT set_config(%L, %L, %L)', 'search_path', v_new_search_path, 'false');
@@ -7143,6 +7228,7 @@ END IF;
 v_partition_expression := CASE
     WHEN v_epoch = 'seconds' THEN format('to_timestamp(%I)', v_control)
     WHEN v_epoch = 'milliseconds' THEN format('to_timestamp((%I/1000)::float)', v_control)
+    WHEN v_epoch = 'nanoseconds' THEN format('to_timestamp((%I/1000000000)::float)', v_control)
     ELSE format('%I', v_control)
 END;
 
@@ -7269,11 +7355,12 @@ LOOP
         v_lock_obtained := FALSE; -- reset for reuse later
 
         IF v_partition_type = 'native' THEN
-            EXECUTE format('ALTER TABLE %I.%I DETACH PARTITION %I.%I'
+            v_sql := format('ALTER TABLE %I.%I DETACH PARTITION %I.%I'
                             , v_parent_schema
                             , v_parent_tablename
                             , v_parent_schema
                             , v_child_table);
+            EXECUTE v_sql;
         ELSE
             EXECUTE format('ALTER TABLE %I.%I NO INHERIT %I.%I'
                             , v_parent_schema
@@ -7483,7 +7570,6 @@ DETAIL: %
 HINT: %', ex_message, ex_context, ex_detail, ex_hint;
 END
 $$;
-
 
 CREATE PROCEDURE @extschema@.partition_data_proc (p_parent_table text, p_interval text DEFAULT NULL, p_batch int DEFAULT NULL, p_wait int DEFAULT 1, p_source_table text DEFAULT NULL, p_order text DEFAULT 'ASC', p_lock_wait int DEFAULT 0, p_lock_wait_tries int DEFAULT 10, p_quiet boolean DEFAULT false, p_ignored_columns text[] DEFAULT NULL)
     LANGUAGE plpgsql
@@ -7743,6 +7829,60 @@ EXECUTE format('ANALYZE %I.%I', v_parent_schema, v_parent_tablename);
 PERFORM pg_advisory_unlock(hashtext('pg_partman reapply_constraints'));
 END
 $$;
+
+CREATE PROCEDURE @extschema@.run_analyze(p_skip_locked boolean DEFAULT false, p_quiet boolean DEFAULT false, p_parent_table text DEFAULT NULL)
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+
+v_adv_lock              boolean;
+v_parent_schema         text;
+v_parent_tablename      text;
+v_row                   record;
+v_sql                   text;
+
+BEGIN
+
+v_adv_lock := pg_try_advisory_lock(hashtext('pg_partman run_analyze'));
+IF v_adv_lock = false THEN
+    RAISE NOTICE 'Partman analyze already running or another session has not released its advisory lock.';
+    RETURN;
+END IF;
+
+FOR v_row IN SELECT parent_table FROM @extschema@.part_config
+LOOP
+
+    IF p_parent_table IS NOT NULL THEN
+        IF p_parent_table != v_row.parent_table THEN
+            CONTINUE;
+        END IF;
+    END IF;
+
+    SELECT n.nspname, c.relname
+    INTO v_parent_schema, v_parent_tablename
+    FROM pg_catalog.pg_class c
+    JOIN pg_catalog.pg_namespace n ON c.relnamespace = n.oid
+    WHERE n.nspname = split_part(v_row.parent_table, '.', 1)::name
+    AND c.relname = split_part(v_row.parent_table, '.', 2)::name;
+
+    v_sql := 'ANALYZE ';
+    IF p_skip_locked THEN
+        v_sql := v_sql || 'SKIP LOCKED ';
+    END IF;
+    v_sql := format('%s %I.%I', v_sql, v_parent_schema, v_parent_tablename);
+
+    IF p_quiet = 'false' THEN
+        RAISE NOTICE 'Analyzed partitioned table: %.%', v_parent_schema, v_parent_tablename;
+    END IF;
+    EXECUTE v_sql;
+    COMMIT;
+
+END LOOP;
+
+PERFORM pg_advisory_unlock(hashtext('pg_partman run_analyze'));
+END
+$$;
+
 
 CREATE PROCEDURE @extschema@.run_maintenance_proc(p_wait int DEFAULT 0, p_analyze boolean DEFAULT NULL, p_jobmon boolean DEFAULT true)
     LANGUAGE plpgsql

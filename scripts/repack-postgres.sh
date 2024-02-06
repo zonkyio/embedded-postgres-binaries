@@ -91,6 +91,12 @@ if [ "$PLATFORM_NAME" = "darwin" ] ; then
     $([ -f lib/libicudata.dylib ] && echo lib/libicudata*.dylib lib/libicui18n*.dylib lib/libicuuc*.dylib || echo ) \
     $([ -f lib/libncursesw.6.dylib ] && echo lib/libncurses*.dylib || echo ) \
     $([ -f lib/liblz4.dylib ] && echo lib/liblz*.dylib || echo ) \
+    $([ -f lib/libgssapi_krb5.dylib ] && echo lib/libgssapi_krb5.*.*.dylib || echo ) \
+    $([ -f lib/libkrb5.dylib ] && echo lib/libkrb5.*.*.dylib || echo ) \
+    $([ -f lib/libkrb5support.dylib ] && echo lib/libkrb5support.*.*.dylib || echo ) \
+    $([ -f lib/libk5crypto.dylib ] && echo lib/libk5crypto.*.*.dylib || echo ) \
+    $([ -f lib/libcom_err.dylib ] && echo lib/libcom_err.*.*.dylib || echo ) \
+    $([ -f lib/libintl.dylib ] && echo lib/libintl.*.dylib || echo ) \
     $([ -f opt/local/lib/libncurses.6.dylib ] && echo opt || echo ) \
     lib/libz*.dylib \
     lib/libpq*.dylib \
@@ -99,7 +105,7 @@ if [ "$PLATFORM_NAME" = "darwin" ] ; then
     lib/libssl*.dylib \
     lib/libcrypto*.dylib \
     lib/libedit*.dylib \
-    $([ -f lib/postgresql/llvmjit_types.bc ] && echo lib/postgresql/*.so lib/postgresql/*.bc || echo lib/postgresql/*.so) \
+    lib/postgresql/*.* \
     bin/initdb \
     bin/pg_ctl \
     bin/postgres \

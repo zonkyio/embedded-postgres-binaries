@@ -14,7 +14,7 @@ function do_build {
     cp repacked-platforms/build/tmp/buildAmd64DarwinBundle/bundle/postgres-darwin-x86_64.txz "release/postgresql-${version}-darwin-amd64.txz"
     cp repacked-platforms/build/tmp/buildArm64v8DarwinBundle/bundle/postgres-darwin-arm_64.txz "release/postgresql-${version}-darwin-arm64.txz"
 
-    ./gradlew clean install -Pversion="${version}.0" -PpgVersion="${version}" -ParchName=amd64
+    ./gradlew clean install -Pversion="${version}.0" -PpgVersion="${version}" -ParchName=amd64 -PpostgisVersion=3.4.0
     cp custom-debian-platform/build/tmp/buildCustomDebianBundle/bundle/postgres-linux-debian.txz "release/postgresql-${version}-linux-amd64.txz"
 }
 
@@ -26,7 +26,7 @@ function do_release {
     gh release create "${release_name}" --notes "${sums}" --title "" release/postgresql-${version}-*
 }
 
-for version in "14.10" "15.5" "16.1"; do
+for version in "13.14" "14.11" "15.6" "16.2"; do
     do_build "$version"
     do_release "$version"
 done

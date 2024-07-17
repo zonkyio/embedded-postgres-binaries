@@ -36,10 +36,10 @@ docker run -i --rm -v ${TRG_DIR}:/usr/local/pg-dist \
 -e PG_VERSION=$PG_VERSION \
 -e POSTGIS_VERSION=$POSTGIS_VERSION \
 -e ICU_ENABLED=$ICU_ENABLED \
--e PROJ_VERSION=6.0.0 \
+-e PROJ_VERSION=8.2.1 \
 -e PROJ_DATUMGRID_VERSION=1.8 \
--e GEOS_VERSION=3.7.2 \
--e GDAL_VERSION=2.4.1 \
+-e GEOS_VERSION=3.8.3 \
+-e GDAL_VERSION=3.4.3 \
 $DOCKER_OPTS $IMG_NAME /bin/bash -ex -c 'echo "Starting building postgres binaries" \
     && sed "s@archive.ubuntu.com@us.archive.ubuntu.com@" -i /etc/apt/sources.list \
     && ln -snf /usr/share/zoneinfo/Etc/UTC /etc/localtime && echo "Etc/UTC" > /etc/timezone \
@@ -100,7 +100,7 @@ $DOCKER_OPTS $IMG_NAME /bin/bash -ex -c 'echo "Starting building postgres binari
     && make -C contrib install \
     \
     && if [ -n "$POSTGIS_VERSION" ]; then \
-      apt-get install -y --no-install-recommends curl libjson-c-dev libsqlite3-0 libsqlite3-dev sqlite3 unzip \
+      apt-get install -y --no-install-recommends curl libjson-c-dev libsqlite3-0 libsqlite3-dev libtiff5-dev libcurl4-openssl-dev sqlite3 unzip \
       && mkdir -p /usr/src/proj \
         && curl -sL "https://download.osgeo.org/proj/proj-$PROJ_VERSION.tar.gz" | tar -xzf - -C /usr/src/proj --strip-components 1 \
         && cd /usr/src/proj \
@@ -124,7 +124,7 @@ $DOCKER_OPTS $IMG_NAME /bin/bash -ex -c 'echo "Starting building postgres binari
         && cd /usr/src/gdal \
         && curl -sL "https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=b8ee5f79949d1d40e8820a774d813660e1be52d3" > config.guess \
         && curl -sL "https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;hb=b8ee5f79949d1d40e8820a774d813660e1be52d3" > config.sub \
-        && ./configure --disable-static --prefix=/usr/local/pg-build \
+        && ./configure --disable-static --prefix=/usr/local/pg-build --with-proj=/usr/local/pg-build \
         && make -j$(nproc) \
         && make install \
       && mkdir -p /usr/src/postgis \
@@ -138,8 +138,16 @@ $DOCKER_OPTS $IMG_NAME /bin/bash -ex -c 'echo "Starting building postgres binari
             --with-geosconfig=/usr/local/pg-build/bin/geos-config \
             --with-projdir=/usr/local/pg-build \
             --with-gdalconfig=/usr/local/pg-build/bin/gdal-config \
+            --without-protobuf \
         && make -j$(nproc) \
         && make install \
+      && apt-get install -y --no-install-recommends cmake libboost-graph-dev \
+        && mkdir -p /usr/src/pgrouting \
+          && curl -sL "https://github.com/pgRouting/pgrouting/archive/v3.4.1.tar.gz" | tar -xzf - -C /usr/src/pgrouting --strip-components 1 \
+          && cd /usr/src/pgrouting && mkdir build && cd build \
+          && cmake -DWITH_DOC=OFF -DCMAKE_INSTALL_PREFIX=/usr/local/pg-build .. \
+          && make \
+          && make install \
     ; fi \
     \
     && cd /usr/local/pg-build \

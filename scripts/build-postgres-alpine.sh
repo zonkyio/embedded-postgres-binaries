@@ -62,6 +62,8 @@ $DOCKER_OPTS $IMG_NAME /bin/sh -ex -c 'echo "Starting building postgres binaries
         python3-dev \
         tcl-dev \
         chrpath \
+        flex \
+        bison \
         \
     && if [ "$E2FS_ENABLED" = false ]; then \
         wget -O uuid.tar.gz "https://www.mirrorservice.org/sites/ftp.ossp.org/pkg/lib/uuid/uuid-1.6.2.tar.gz" \
@@ -100,8 +102,8 @@ $DOCKER_OPTS $IMG_NAME /bin/sh -ex -c 'echo "Starting building postgres binaries
         --with-python \
         --with-tcl \
         --without-readline \
-    && make -j$(nproc) world \
-    && make install-world \
+    && make -j$(nproc) world-bin \
+    && make install-world-bin \
     && make -C contrib install \
     \
     && if [ -n "$POSTGIS_VERSION" ]; then \

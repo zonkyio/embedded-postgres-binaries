@@ -174,7 +174,7 @@ jobs:
   alpine-lite-arm32v6:
     name: Alpine - arm32v6 (Lite)
     runs-on: ubuntu-latest
-    if: ${{ !(startsWith(github.event.milestone.title, '16.')) }}
+    if: ${{ startsWith(github.event.milestone.title, '10.') || startsWith(github.event.milestone.title, '11.') || startsWith(github.event.milestone.title, '12.') || startsWith(github.event.milestone.title, '13.') || startsWith(github.event.milestone.title, '14.') || startsWith(github.event.milestone.title, '15.') }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -203,7 +203,7 @@ jobs:
   alpine-lite-arm64v8:
     name: Alpine - arm64v8 (Lite)
     runs-on: ubuntu-latest
-    if: ${{ !(startsWith(github.event.milestone.title, '16.')) }}
+    if: ${{ startsWith(github.event.milestone.title, '10.') || startsWith(github.event.milestone.title, '11.') || startsWith(github.event.milestone.title, '12.') || startsWith(github.event.milestone.title, '13.') || startsWith(github.event.milestone.title, '14.') || startsWith(github.event.milestone.title, '15.') }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -232,7 +232,7 @@ jobs:
   alpine-lite-ppc64le:
     name: Alpine - ppc64le (Lite)
     runs-on: ubuntu-latest
-    if: ${{ !(startsWith(github.event.milestone.title, '16.')) }}
+    if: ${{ startsWith(github.event.milestone.title, '10.') || startsWith(github.event.milestone.title, '11.') || startsWith(github.event.milestone.title, '12.') || startsWith(github.event.milestone.title, '13.') || startsWith(github.event.milestone.title, '14.') || startsWith(github.event.milestone.title, '15.') }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -314,25 +314,25 @@ jobs:
           name: ppc64leAlpineBundle
           path: alpine-platforms/build/tmp/buildPpc64leAlpineBundle/bundle
       - name: Download bundle - arm32v6AlpineLite
-        if: ${{ !(startsWith(github.event.milestone.title, '16.')) }}
+        if: ${{ startsWith(github.event.milestone.title, '10.') || startsWith(github.event.milestone.title, '11.') || startsWith(github.event.milestone.title, '12.') || startsWith(github.event.milestone.title, '13.') || startsWith(github.event.milestone.title, '14.') || startsWith(github.event.milestone.title, '15.') }}
         uses: actions/download-artifact@v2
         with:
           name: arm32v6AlpineLiteBundle
           path: alpine-lite-platforms/build/tmp/buildArm32v6AlpineLiteBundle/bundle
       - name: Download bundle - arm64v8AlpineLite
-        if: ${{ !(startsWith(github.event.milestone.title, '16.')) }}
+        if: ${{ startsWith(github.event.milestone.title, '10.') || startsWith(github.event.milestone.title, '11.') || startsWith(github.event.milestone.title, '12.') || startsWith(github.event.milestone.title, '13.') || startsWith(github.event.milestone.title, '14.') || startsWith(github.event.milestone.title, '15.') }}
         uses: actions/download-artifact@v2
         with:
           name: arm64v8AlpineLiteBundle
           path: alpine-lite-platforms/build/tmp/buildArm64v8AlpineLiteBundle/bundle
       - name: Download bundle - ppc64leAlpineLite
-        if: ${{ !(startsWith(github.event.milestone.title, '16.')) }}
+        if: ${{ startsWith(github.event.milestone.title, '10.') || startsWith(github.event.milestone.title, '11.') || startsWith(github.event.milestone.title, '12.') || startsWith(github.event.milestone.title, '13.') || startsWith(github.event.milestone.title, '14.') || startsWith(github.event.milestone.title, '15.') }}
         uses: actions/download-artifact@v2
         with:
           name: ppc64leAlpineLiteBundle
           path: alpine-lite-platforms/build/tmp/buildPpc64leAlpineLiteBundle/bundle
       - name: Release with Gradle
-        if: ${{ !(startsWith(github.event.milestone.title, '16.')) }}
+        if: ${{ startsWith(github.event.milestone.title, '10.') || startsWith(github.event.milestone.title, '11.') || startsWith(github.event.milestone.title, '12.') || startsWith(github.event.milestone.title, '13.') || startsWith(github.event.milestone.title, '14.') || startsWith(github.event.milestone.title, '15.') }}
         env:
           MAVEN_USER: ${{ secrets.MAVEN_USER }}
           MAVEN_PASS: ${{ secrets.MAVEN_PASS }}
@@ -355,7 +355,7 @@ jobs:
             -Possrh.username=$MAVEN_USER \
             -Possrh.password=$MAVEN_PASS
       - name: Release with Gradle 2
-        if: ${{ startsWith(github.event.milestone.title, '16.') }}
+        if: ${{ !startsWith(github.event.milestone.title, '10.') && !startsWith(github.event.milestone.title, '11.') && !startsWith(github.event.milestone.title, '12.') && !startsWith(github.event.milestone.title, '13.') && !startsWith(github.event.milestone.title, '14.') && !startsWith(github.event.milestone.title, '15.') }}
         env:
           MAVEN_USER: ${{ secrets.MAVEN_USER }}
           MAVEN_PASS: ${{ secrets.MAVEN_PASS }}

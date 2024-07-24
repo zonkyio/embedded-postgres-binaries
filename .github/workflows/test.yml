@@ -52,7 +52,7 @@ jobs:
         timeout-minutes: 10
   macos:
     name: PostgreSQL ${{ matrix.postgres }} (MacOS)
-    runs-on: macos-12
+    runs-on: macos-latest
     strategy:
       fail-fast: false
       matrix:
@@ -65,6 +65,10 @@ jobs:
         with:
           distribution: 'zulu'
           java-version: 15
+      - name: Install psql executables
+        run: |
+          brew update
+          brew install libpq
       - name: Test PostgreSQL bundle
         run: ./gradlew :repacked-platforms:testAmd64DarwinJar -Pversion=${{ matrix.postgres }}-TEST -PpgVersion=${{ matrix.postgres }}
         timeout-minutes: 10

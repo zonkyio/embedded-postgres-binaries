@@ -68,7 +68,7 @@ jobs:
       - name: Install psql executables
         run: |
           brew update
-          brew install libpq
+          brew install postgresql
       - name: Test PostgreSQL bundle
         run: ./gradlew :repacked-platforms:testAmd64DarwinJar -Pversion=${{ matrix.postgres }}-TEST -PpgVersion=${{ matrix.postgres }}
         timeout-minutes: 10

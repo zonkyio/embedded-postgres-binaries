@@ -52,7 +52,7 @@ jobs:
         timeout-minutes: 10
   macos:
     name: PostgreSQL ${{ matrix.postgres }} (MacOS)
-    runs-on: macos-latest
+    runs-on: macos-12
     strategy:
       fail-fast: false
       matrix:

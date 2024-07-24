@@ -18,6 +18,7 @@ However, with a little effort, the embedded binaries can also be integrated with
 * [zonkyio/embedded-postgres](https://github.com/zonkyio/embedded-postgres) (Java)
 * [hgschmie/pg-embedded](https://github.com/hgschmie/pg-embedded) (Java)
 * [fergusstrange/embedded-postgres](https://github.com/fergusstrange/embedded-postgres) (Go)
+* [theseus-rs/postgresql-embedded](https://github.com/theseus-rs/postgresql-embedded) (Rust)
 * [faokunega/pg-embed](https://github.com/faokunega/pg-embed) (Rust)
 * [leinelissen/embedded-postgres](https://github.com/leinelissen/embedded-postgres) (NodeJS)
 

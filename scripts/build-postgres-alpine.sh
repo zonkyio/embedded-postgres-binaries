@@ -100,8 +100,8 @@ $DOCKER_OPTS $IMG_NAME /bin/sh -ex -c 'echo "Starting building postgres binaries
         --with-python \
         --with-tcl \
         --without-readline \
-    && make -j$(nproc) world \
-    && make install-world \
+    && make -j$(nproc) world-bin \
+    && make install-world-bin \
     && make -C contrib install \
     \
     && if [ -n "$POSTGIS_VERSION" ]; then \

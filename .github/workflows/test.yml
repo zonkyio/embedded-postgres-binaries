@@ -7,7 +7,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        postgres: ["17beta2"]
+        postgres: ["17beta3"]
     steps:
       - name: Checkout project
         uses: actions/checkout@v3
@@ -34,7 +34,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        postgres: ["17beta2"]
+        postgres: ["17beta3"]
     steps:
       - name: Checkout project
         uses: actions/checkout@v3
@@ -56,7 +56,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        postgres: ["17beta2"]
+        postgres: ["17beta3"]
     steps:
       - name: Checkout project
         uses: actions/checkout@v3
@@ -78,7 +78,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        postgres: ["17beta2"]
+        postgres: ["17beta3"]
     steps:
       - name: Checkout project
         uses: actions/checkout@v3

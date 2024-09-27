@@ -27,7 +27,7 @@ jobs:
       - name: Build Bundle
         run: ./gradlew :debian-platforms:buildArm32v7DebianBundle -Pversion=$RELEASE_VERSION -PpgVersion=$POSTGRES_VERSION
       - name: Upload bundle
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: arm32v7DebianBundle
           path: debian-platforms/build/tmp/buildArm32v7DebianBundle/bundle/postgres-linux-debian.txz
@@ -55,7 +55,7 @@ jobs:
       - name: Build Bundle
         run: ./gradlew :debian-platforms:buildArm64v8DebianBundle -Pversion=$RELEASE_VERSION -PpgVersion=$POSTGRES_VERSION
       - name: Upload bundle
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: arm64v8DebianBundle
           path: debian-platforms/build/tmp/buildArm64v8DebianBundle/bundle/postgres-linux-debian.txz
@@ -83,7 +83,7 @@ jobs:
       - name: Build Bundle
         run: ./gradlew :debian-platforms:buildPpc64leDebianBundle -Pversion=$RELEASE_VERSION -PpgVersion=$POSTGRES_VERSION
       - name: Upload bundle
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: ppc64leDebianBundle
           path: debian-platforms/build/tmp/buildPpc64leDebianBundle/bundle/postgres-linux-debian.txz
@@ -111,7 +111,7 @@ jobs:
       - name: Build Bundle
         run: ./gradlew :alpine-platforms:buildArm32v6AlpineBundle -Pversion=$RELEASE_VERSION -PpgVersion=$POSTGRES_VERSION
       - name: Upload bundle
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: arm32v6AlpineBundle
           path: alpine-platforms/build/tmp/buildArm32v6AlpineBundle/bundle/postgres-linux-alpine_linux.txz
@@ -139,7 +139,7 @@ jobs:
       - name: Build Bundle
         run: ./gradlew :alpine-platforms:buildArm64v8AlpineBundle -Pversion=$RELEASE_VERSION -PpgVersion=$POSTGRES_VERSION
       - name: Upload bundle
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: arm64v8AlpineBundle
           path: alpine-platforms/build/tmp/buildArm64v8AlpineBundle/bundle/postgres-linux-alpine_linux.txz
@@ -167,7 +167,7 @@ jobs:
       - name: Build Bundle
         run: ./gradlew :alpine-platforms:buildPpc64leAlpineBundle -Pversion=$RELEASE_VERSION -PpgVersion=$POSTGRES_VERSION
       - name: Upload bundle
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: ppc64leAlpineBundle
           path: alpine-platforms/build/tmp/buildPpc64leAlpineBundle/bundle/postgres-linux-alpine_linux.txz
@@ -196,7 +196,7 @@ jobs:
       - name: Build Bundle
         run: ./gradlew :alpine-lite-platforms:buildArm32v6AlpineLiteBundle -Pversion=$RELEASE_VERSION -PpgVersion=$POSTGRES_VERSION
       - name: Upload bundle
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: arm32v6AlpineLiteBundle
           path: alpine-lite-platforms/build/tmp/buildArm32v6AlpineLiteBundle/bundle/postgres-linux-alpine_linux.txz
@@ -225,7 +225,7 @@ jobs:
       - name: Build Bundle
         run: ./gradlew :alpine-lite-platforms:buildArm64v8AlpineLiteBundle -Pversion=$RELEASE_VERSION -PpgVersion=$POSTGRES_VERSION
       - name: Upload bundle
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: arm64v8AlpineLiteBundle
           path: alpine-lite-platforms/build/tmp/buildArm64v8AlpineLiteBundle/bundle/postgres-linux-alpine_linux.txz
@@ -254,7 +254,7 @@ jobs:
       - name: Build Bundle
         run: ./gradlew :alpine-lite-platforms:buildPpc64leAlpineLiteBundle -Pversion=$RELEASE_VERSION -PpgVersion=$POSTGRES_VERSION
       - name: Upload bundle
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: ppc64leAlpineLiteBundle
           path: alpine-lite-platforms/build/tmp/buildPpc64leAlpineLiteBundle/bundle/postgres-linux-alpine_linux.txz
@@ -284,50 +284,50 @@ jobs:
           echo "RELEASE_VERSION=$MILESTONE_VERSION" >> $GITHUB_ENV
           echo "POSTGRES_VERSION=${MILESTONE_VERSION%.*}" >> $GITHUB_ENV
       - name: Download bundle - arm32v7Debian
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           name: arm32v7DebianBundle
           path: debian-platforms/build/tmp/buildArm32v7DebianBundle/bundle
       - name: Download bundle - arm64v8Debian
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           name: arm64v8DebianBundle
           path: debian-platforms/build/tmp/buildArm64v8DebianBundle/bundle
       - name: Download bundle - ppc64leDebian
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           name: ppc64leDebianBundle
           path: debian-platforms/build/tmp/buildPpc64leDebianBundle/bundle
       - name: Download bundle - arm32v6Alpine
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           name: arm32v6AlpineBundle
           path: alpine-platforms/build/tmp/buildArm32v6AlpineBundle/bundle
       - name: Download bundle - arm64v8Alpine
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           name: arm64v8AlpineBundle
           path: alpine-platforms/build/tmp/buildArm64v8AlpineBundle/bundle
       - name: Download bundle - ppc64leAlpine
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           name: ppc64leAlpineBundle
           path: alpine-platforms/build/tmp/buildPpc64leAlpineBundle/bundle
       - name: Download bundle - arm32v6AlpineLite
         if: ${{ startsWith(github.event.milestone.title, '10.') || startsWith(github.event.milestone.title, '11.') || startsWith(github.event.milestone.title, '12.') || startsWith(github.event.milestone.title, '13.') || startsWith(github.event.milestone.title, '14.') || startsWith(github.event.milestone.title, '15.') }}
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           name: arm32v6AlpineLiteBundle
           path: alpine-lite-platforms/build/tmp/buildArm32v6AlpineLiteBundle/bundle
       - name: Download bundle - arm64v8AlpineLite
         if: ${{ startsWith(github.event.milestone.title, '10.') || startsWith(github.event.milestone.title, '11.') || startsWith(github.event.milestone.title, '12.') || startsWith(github.event.milestone.title, '13.') || startsWith(github.event.milestone.title, '14.') || startsWith(github.event.milestone.title, '15.') }}
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           name: arm64v8AlpineLiteBundle
           path: alpine-lite-platforms/build/tmp/buildArm64v8AlpineLiteBundle/bundle
       - name: Download bundle - ppc64leAlpineLite
         if: ${{ startsWith(github.event.milestone.title, '10.') || startsWith(github.event.milestone.title, '11.') || startsWith(github.event.milestone.title, '12.') || startsWith(github.event.milestone.title, '13.') || startsWith(github.event.milestone.title, '14.') || startsWith(github.event.milestone.title, '15.') }}
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           name: ppc64leAlpineLiteBundle
           path: alpine-lite-platforms/build/tmp/buildPpc64leAlpineLiteBundle/bundle

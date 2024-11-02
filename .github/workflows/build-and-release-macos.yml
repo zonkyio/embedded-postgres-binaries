@@ -1,0 +1,59 @@
+name: Build and Release PostgreSQL with PostGIS and pgRouting
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  build-and-release:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        # pg_version: ["13.14", "14.11", "15.6", "16.2"]
+        pg_version: ["13.14"]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build PostgreSQL, PostGIS, and Dependencies
+        run: |
+          ./build_postgres.sh -v ${{ matrix.pg_version }} -p darwin -a arm64v8 -g 3.1.4 -r 3.2.0
+
+      - name: Prepare Release Assets
+        run: |
+          mkdir -p release
+          cp bundle/postgres-macos.txz "release/postgresql-${{ matrix.pg_version }}-macos.txz"
+
+      - name: Calculate SHA256 Checksums
+        run: |
+          cd release
+          shasum -a 256 postgresql-${{ matrix.pg_version }}-macos.txz > SHA256SUMS.txt
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: "v${{ matrix.pg_version }}-$(date +%Y%m%d)"
+          release_name: "PostgreSQL ${{ matrix.pg_version }} with PostGIS 3.4.0 and pgRouting 3.4.2"
+          draft: false
+          prerelease: false
+          body: |
+            SHA256 Checksums:
+            ```
+            $(cat release/SHA256SUMS.txt)
+            ```
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: release/postgresql-${{ matrix.pg_version }}-macos.txz
+          asset_name: postgresql-${{ matrix.pg_version }}-macos.txz
+          asset_content_type: application/x-tar
+

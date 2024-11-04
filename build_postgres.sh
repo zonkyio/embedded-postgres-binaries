@@ -31,7 +31,7 @@ if [ "$PLATFORM_NAME" = "darwin" ] && [ "$ARCH_NAME" = "i386" ]; then
 fi
 
 # Define filenames and directories
-FILE_NAME="postgresql-$PG_VERSION"
+FILE_NAME="postgresql-$PG_VERSION-1"
 if [ "$PLATFORM_NAME" = "darwin" ]; then
   FILE_NAME="$FILE_NAME-osx"
 else

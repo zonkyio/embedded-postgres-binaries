@@ -113,7 +113,7 @@ elif [ "$PLATFORM_NAME" = "windows" ] ; then
 
   tar -cJvf $TRG_DIR/postgres-windows-$NORM_ARCH_NAME.txz \
     share \
-    lib/iconv.lib \
+    $([ -f lib/libiconv.lib ] && echo lib/libiconv.lib || echo lib/iconv.lib) \
     lib/libxml2.lib \
     $([ -f lib/ssleay32.lib ] && echo lib/ssleay32.lib lib/ssleay32MD.lib || echo lib/libssl.lib lib/libcrypto.lib) \
     lib/*.dll \

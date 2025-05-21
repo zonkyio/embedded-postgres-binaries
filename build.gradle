@@ -602,12 +602,12 @@ static def defaultAlpineImage(archName, useEmulation) {
     def system = OperatingSystem.current()
 
     if (archName == system.getArch()) {
-        return 'alpine:3.6'
+        return 'alpine:3.9'
     } else if (system.isMacOsX() || useEmulation) {
-        return "$archName/alpine:3.6"
+        return "$archName/alpine:3.9"
     } else if (system.isLinux()) {
         def archMappings = ['arm32v5':'armel', 'arm32v6':'armhf', 'arm64v8':'arm64']
-        return "multiarch/alpine:${archMappings[archName] ?: archName}-v3.6"
+        return "multiarch/alpine:${archMappings[archName] ?: archName}-v3.9"
     } else {
         throw new GradleException("Cross-building is not supported on the current platform: $system")
     }

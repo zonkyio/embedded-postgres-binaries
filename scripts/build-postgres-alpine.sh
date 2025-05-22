@@ -70,8 +70,8 @@ $DOCKER_OPTS $IMG_NAME /bin/sh -ex -c 'echo "Starting building postgres binaries
         && mkdir -p /usr/src/ossp-uuid \
         && tar -xf uuid.tar.gz -C /usr/src/ossp-uuid --strip-components 1 \
         && cd /usr/src/ossp-uuid \
-        && wget -O config.guess "https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=b8ee5f79949d1d40e8820a774d813660e1be52d3" \
-        && wget -O config.sub "https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;hb=b8ee5f79949d1d40e8820a774d813660e1be52d3" \
+        && wget -O config.guess "https://gitlab.com/freedesktop-sdk/mirrors/savannah/config/-/raw/8de5d272823855dd8d81fee50418f4ebf7e79ed9/config.guess" \
+        && wget -O config.sub "https://gitlab.com/freedesktop-sdk/mirrors/savannah/config/-/raw/b8ee5f79949d1d40e8820a774d813660e1be52d3/config.sub" \
         && ./configure --prefix=/usr/local \
         && make -j$(nproc) \
         && make install \
@@ -82,8 +82,8 @@ $DOCKER_OPTS $IMG_NAME /bin/sh -ex -c 'echo "Starting building postgres binaries
     && mkdir -p /usr/src/postgresql \
     && tar -xf postgresql.tar.bz2 -C /usr/src/postgresql --strip-components 1 \
     && cd /usr/src/postgresql \
-    && wget -O config/config.guess "https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=b8ee5f79949d1d40e8820a774d813660e1be52d3" \
-    && wget -O config/config.sub "https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;hb=b8ee5f79949d1d40e8820a774d813660e1be52d3" \
+    && wget -O config/config.guess "https://gitlab.com/freedesktop-sdk/mirrors/savannah/config/-/raw/8de5d272823855dd8d81fee50418f4ebf7e79ed9/config.guess" \
+    && wget -O config/config.sub "https://gitlab.com/freedesktop-sdk/mirrors/savannah/config/-/raw/b8ee5f79949d1d40e8820a774d813660e1be52d3/config.sub" \
     && ./configure \
         CFLAGS="-Os" \
         PYTHON=/usr/bin/python3 \
@@ -113,32 +113,32 @@ $DOCKER_OPTS $IMG_NAME /bin/sh -ex -c 'echo "Starting building postgres binaries
         && cd /usr/src/proj \
         && curl -sL "https://download.osgeo.org/proj/proj-datumgrid-$PROJ_DATUMGRID_VERSION.zip" > proj-datumgrid.zip \
         && unzip -o proj-datumgrid.zip -d data\
-        && curl -sL "https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=b8ee5f79949d1d40e8820a774d813660e1be52d3" > config.guess \
-        && curl -sL "https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;hb=b8ee5f79949d1d40e8820a774d813660e1be52d3" > config.sub \
+        && curl -sL "https://gitlab.com/freedesktop-sdk/mirrors/savannah/config/-/raw/8de5d272823855dd8d81fee50418f4ebf7e79ed9/config.guess" > config.guess \
+        && curl -sL "https://gitlab.com/freedesktop-sdk/mirrors/savannah/config/-/raw/b8ee5f79949d1d40e8820a774d813660e1be52d3/config.sub" > config.sub \
         && ./configure --disable-static --prefix=/usr/local/pg-build \
         && make -j$(nproc) \
         && make install \
       && mkdir -p /usr/src/geos \
         && curl -sL "https://download.osgeo.org/geos/geos-$GEOS_VERSION.tar.bz2" | tar -xjf - -C /usr/src/geos --strip-components 1 \
         && cd /usr/src/geos \
-        && curl -sL "https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=b8ee5f79949d1d40e8820a774d813660e1be52d3" > config.guess \
-        && curl -sL "https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;hb=b8ee5f79949d1d40e8820a774d813660e1be52d3" > config.sub \
+        && curl -sL "https://gitlab.com/freedesktop-sdk/mirrors/savannah/config/-/raw/8de5d272823855dd8d81fee50418f4ebf7e79ed9/config.guess" > config.guess \
+        && curl -sL "https://gitlab.com/freedesktop-sdk/mirrors/savannah/config/-/raw/b8ee5f79949d1d40e8820a774d813660e1be52d3/config.sub" > config.sub \
         && ./configure --disable-static --prefix=/usr/local/pg-build \
         && make -j$(nproc) \
         && make install \
       && mkdir -p /usr/src/gdal \
         && curl -sL "https://download.osgeo.org/gdal/$GDAL_VERSION/gdal-$GDAL_VERSION.tar.xz" | tar -xJf - -C /usr/src/gdal --strip-components 1 \
         && cd /usr/src/gdal \
-        && curl -sL "https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=b8ee5f79949d1d40e8820a774d813660e1be52d3" > config.guess \
-        && curl -sL "https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;hb=b8ee5f79949d1d40e8820a774d813660e1be52d3" > config.sub \
+        && curl -sL "https://gitlab.com/freedesktop-sdk/mirrors/savannah/config/-/raw/8de5d272823855dd8d81fee50418f4ebf7e79ed9/config.guess" > config.guess \
+        && curl -sL "https://gitlab.com/freedesktop-sdk/mirrors/savannah/config/-/raw/b8ee5f79949d1d40e8820a774d813660e1be52d3/config.sub" > config.sub \
         && ./configure --disable-static --prefix=/usr/local/pg-build \
         && make -j$(nproc) \
         && make install \
       && mkdir -p /usr/src/postgis \
         && curl -sL "https://postgis.net/stuff/postgis-$POSTGIS_VERSION.tar.gz" | tar -xzf - -C /usr/src/postgis --strip-components 1 \
         && cd /usr/src/postgis \
-        && curl -sL "https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=b8ee5f79949d1d40e8820a774d813660e1be52d3" > config.guess \
-        && curl -sL "https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;hb=b8ee5f79949d1d40e8820a774d813660e1be52d3" > config.sub \
+        && curl -sL "https://gitlab.com/freedesktop-sdk/mirrors/savannah/config/-/raw/8de5d272823855dd8d81fee50418f4ebf7e79ed9/config.guess" > config.guess \
+        && curl -sL "https://gitlab.com/freedesktop-sdk/mirrors/savannah/config/-/raw/b8ee5f79949d1d40e8820a774d813660e1be52d3/config.sub" > config.sub \
         && ./configure \
             --prefix=/usr/local/pg-build \
             --with-pgconfig=/usr/local/pg-build/bin/pg_config \

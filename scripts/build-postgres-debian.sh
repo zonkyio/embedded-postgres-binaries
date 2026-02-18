@@ -63,7 +63,7 @@ $DOCKER_OPTS $IMG_NAME /bin/bash -ex -c 'echo "Starting building postgres binari
         flex \
         bison \
         \
-    && wget -O patchelf.tar.gz "https://nixos.org/releases/patchelf/patchelf-0.9/patchelf-0.9.tar.gz" \
+    && wget -O patchelf.tar.gz "https://github.com/NixOS/patchelf/releases/download/0.15.5/patchelf-0.15.5.tar.gz" \
     && mkdir -p /usr/src/patchelf \
     && tar -xf patchelf.tar.gz -C /usr/src/patchelf --strip-components 1 \
     && cd /usr/src/patchelf \

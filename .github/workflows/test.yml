@@ -7,7 +7,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        postgres: ["18.2", "17.8", "16.12", "15.16", "14.21"]
+        postgres: ["18.3", "17.9", "16.13", "15.17", "14.22"]
     steps:
       - name: Checkout project
         uses: actions/checkout@v3
@@ -34,7 +34,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        postgres: ["18.2", "17.8", "16.12", "15.16", "14.21"]
+        postgres: ["18.3", "17.9", "16.13", "15.17", "14.22"]
     steps:
       - name: Checkout project
         uses: actions/checkout@v3
@@ -56,7 +56,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        postgres: ["18.2", "17.8", "16.12", "15.16", "14.21"]
+        postgres: ["18.3", "17.9", "16.13", "15.17", "14.22"]
     steps:
       - name: Checkout project
         uses: actions/checkout@v3
@@ -69,6 +69,7 @@ jobs:
         run: |
           brew update
           brew install postgresql
+          echo "$(brew --prefix postgresql)/bin" >> $GITHUB_PATH
       - name: Test PostgreSQL bundle
         run: ./gradlew :repacked-platforms:testAmd64DarwinJar -Pversion=${{ matrix.postgres }}-TEST -PpgVersion=${{ matrix.postgres }}
         timeout-minutes: 10
@@ -78,7 +79,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        postgres: ["18.2", "17.8", "16.12", "15.16", "14.21"]
+        postgres: ["18.3", "17.9", "16.13", "15.17", "14.22"]
     steps:
       - name: Checkout project
         uses: actions/checkout@v3

@@ -69,6 +69,7 @@ jobs:
         run: |
           brew update
           brew install postgresql
+          echo "$(brew --prefix postgresql)/bin" >> $GITHUB_PATH
       - name: Test PostgreSQL bundle
         run: ./gradlew :repacked-platforms:testAmd64DarwinJar -Pversion=${{ matrix.postgres }}-TEST -PpgVersion=${{ matrix.postgres }}
         timeout-minutes: 10

@@ -32,7 +32,7 @@ The version of the postgres binaries can be managed by importing `embedded-postg
         <dependency>
             <groupId>io.zonky.test.postgres</groupId>
             <artifactId>embedded-postgres-binaries-bom</artifactId>
-            <version>16.0.0</version>
+            <version>18.3.0</version>
             <type>pom</type>
             <scope>import</scope>
         </dependency>
@@ -85,7 +85,7 @@ Compiling non-native architectures rely on emulation, so it is necessary to regi
 
 Builds all supported artifacts for all supported platforms and architectures, and also builds a BOM to control the versions of postgres binaries.
 
-`./gradlew clean install --parallel -Pversion=10.6.0 -PpgVersion=10.6`
+`./gradlew clean install --parallel -Pversion=18.3.0 -PpgVersion=18.3`
 
 Note that the complete build can take a very long time, even a few hours, depending on the performance of the machine on which the build is running.
 
@@ -93,13 +93,13 @@ Note that the complete build can take a very long time, even a few hours, depend
 
 Builds only binaries for a specified platform/submodule.
 
-`./gradlew clean :repacked-platforms:install -Pversion=10.6.0 -PpgVersion=10.6`
+`./gradlew clean :repacked-platforms:install -Pversion=18.3.0 -PpgVersion=18.3`
 
 ### Build only a single binary
 
 Builds only a single binary for a specified platform and architecture.
 
-`./gradlew clean install -Pversion=10.6.0 -PpgVersion=10.6 -ParchName=arm64v8 -PdistName=alpine`
+`./gradlew clean install -Pversion=18.3.0 -PpgVersion=18.3 -ParchName=arm64v8 -PdistName=alpine`
 
 It is also possible to include the PostGIS extension by passing the `postgisVersion` parameter, e.g. `-PpostgisVersion=2.5.2`. Note that this option is not (yet) available for Windows and Mac OS platforms.
 

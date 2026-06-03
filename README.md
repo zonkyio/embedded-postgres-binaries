@@ -101,12 +101,15 @@ Builds only a single binary for a specified platform and architecture.
 
 `./gradlew clean install -Pversion=18.4.0 -PpgVersion=18.4 -ParchName=arm64v8 -PdistName=alpine`
 
-It is also possible to include the PostGIS extension by passing the `postgisVersion` parameter, e.g. `-PpostgisVersion=2.5.2`. Note that this option is not (yet) available for Windows and Mac OS platforms.
+It is also possible to include the PostGIS extension by passing the `postgisVersion` parameter, e.g. `-PpostgisVersion=2.5.2`, and/or the pgvector extension by passing the `pgvectorVersion` parameter, e.g. `-PpgvectorVersion=0.8.2`. Both parameters can be combined to bundle both extensions at once. Note that these options are not (yet) available for Windows and Mac OS platforms.
 
 Optional parameters:
 - *postgisVersion*
   - default value: unset
   - supported values: a postgis version number (only 2.5.2+, 2.4.7+, 2.3.9+ versions are supported)
+- *pgvectorVersion*
+  - default value: unset
+  - supported values: a pgvector version number (e.g. 0.8.2)
 - *archName*
   - default value: `amd64`
   - supported values: `amd64`, `i386`, `arm32v6`, `arm32v7`, `arm64v8`, `ppc64le`

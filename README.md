@@ -55,10 +55,17 @@ Support for other architectures can be enabled by adding the corresponding Maven
 </dependency>
 ```
 
-**Supported platforms:** `Darwin`, `Windows`, `Linux`, `Alpine Linux`  
+**Supported platforms:** `Darwin`, `Windows`, `Linux`, `Alpine Linux`, `FreeBSD 13`, `FreeBSD 14`  
 **Supported architectures:** `amd64`, `i386`, `arm32v6`, `arm32v7`, `arm64v8`, `ppc64le`
 
 Note that not all architectures are supported by all platforms, you can find an exhaustive list of all available artifacts here: https://mvnrepository.com/artifact/io.zonky.test.postgres
+
+FreeBSD runtime compatibility verified so far:
+
+- `freebsd13` artifact on FreeBSD `13.5`
+- `freebsd13` artifact on FreeBSD `14.4`
+- `freebsd14` artifact on FreeBSD `14.4`
+- `freebsd14` artifact on FreeBSD `15.0`
 
 ## Building from Source
 The project uses a [Gradle](http://gradle.org)-based build system. In the instructions
@@ -71,6 +78,8 @@ a cross-platform, self-contained bootstrap mechanism for the build.
 
 Be sure that your `JAVA_HOME` environment variable points to the `jdk1.6.0` folder
 extracted from the JDK download.
+
+The Gradle wrapper used in this project is based on Gradle `6.9.3`. On modern machines it is safest to run the build with Java `8`, `11` or `17`. Java `19+` is not supported by this Gradle version.
 
 Compiling non-native architectures rely on emulation, so it is necessary to register `qemu-*-static` executables:
    
@@ -101,6 +110,52 @@ Builds only a single binary for a specified platform and architecture.
 
 `./gradlew clean install -Pversion=18.6.0 -PpgVersion=18.6 -ParchName=arm64v8 -PdistName=alpine`
 
+For the FreeBSD 13 amd64 artifact:
+
+`./gradlew clean :custom-freebsd-platform:install -Pversion=18.3.0 -PpgVersion=18.3 -PdistName=freebsd13`
+
+For the FreeBSD 14 amd64 artifact:
+
+`./gradlew clean :custom-freebsd-platform:install -Pversion=18.3.0 -PpgVersion=18.3 -PdistName=freebsd14`
+
+These builds run a FreeBSD guest inside QEMU from a Docker container. By default:
+
+- `freebsd13` uses the official FreeBSD `13.5-RELEASE` installer image
+- `freebsd14` uses the official FreeBSD `14.4-RELEASE` installer image
+
+Downloads are cached under `.cache/freebsd-builder`.
+
+To override the FreeBSD installer image or cache directory:
+
+`./gradlew clean :custom-freebsd-platform:install -Pversion=18.3.0 -PpgVersion=18.3 -PdistName=freebsd13 -PfreebsdImageUrl=https://download.freebsd.org/releases/amd64/amd64/ISO-IMAGES/13.5/FreeBSD-13.5-RELEASE-amd64-disc1.iso.xz -PcacheDir=$PWD/.cache/freebsd-builder`
+
+`./gradlew clean :custom-freebsd-platform:install -Pversion=18.3.0 -PpgVersion=18.3 -PdistName=freebsd14 -PfreebsdImageUrl=https://download.freebsd.org/releases/amd64/amd64/ISO-IMAGES/14.4/FreeBSD-14.4-RELEASE-amd64-disc1.iso.xz -PcacheDir=$PWD/.cache/freebsd-builder`
+
+The generated runtime archive is named `postgres-freebsd13-x86_64.txz` or `postgres-freebsd14-x86_64.txz`, and the resulting jar artifact is named `embedded-postgres-binaries-freebsd13-amd64-<version>.jar` or `embedded-postgres-binaries-freebsd14-amd64-<version>.jar`.
+
+Current FreeBSD runtime assumption:
+
+- the bundled PostgreSQL binaries and shared libraries are packaged inside the artifact
+- ICU data is expected to be available using the standard FreeBSD layout under `/usr/local/share/icu`
+
+In other words, the current FreeBSD artifact is suitable for embedded PostgreSQL on a normal FreeBSD host, but it is not yet a fully self-contained ICU runtime.
+
+### Test the FreeBSD artifact
+
+After creating the jar, the FreeBSD smoke test can be run with:
+
+`./gradlew :custom-freebsd-platform:test -Pversion=18.3.0 -PpgVersion=18.3 -PdistName=freebsd13`
+
+`./gradlew :custom-freebsd-platform:test -Pversion=18.3.0 -PpgVersion=18.3 -PdistName=freebsd14`
+
+This smoke test boots a disposable FreeBSD guest for the requested major version and verifies:
+
+- `initdb`
+- `pg_ctl`
+- `SHOW SERVER_VERSION`
+- `pgcrypto`
+- `uuid-ossp`
+
 It is also possible to include the PostGIS extension by passing the `postgisVersion` parameter, e.g. `-PpostgisVersion=2.5.2`. Note that this option is not (yet) available for Windows and Mac OS platforms.
 
 Optional parameters:
@@ -112,7 +167,7 @@ Optional parameters:
   - supported values: `amd64`, `i386`, `arm32v6`, `arm32v7`, `arm64v8`, `ppc64le`
 - *distName*
   - default value: debian-like distribution
-  - supported values: the default value or `alpine`
+  - supported values: the default value, `alpine`, `freebsd13` or `freebsd14`
 - *dockerImage*
   - default value: resolved based on the platform
   - supported values: any supported docker image

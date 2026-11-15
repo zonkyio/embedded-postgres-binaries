@@ -3,13 +3,15 @@ set -ex
 
 DOCKER_OPTS=
 POSTGIS_VERSION=
+PGVECTOR_VERSION=
 LITE_OPT=false
 
-while getopts "v:i:g:o:l" opt; do
+while getopts "v:i:g:e:o:l" opt; do
     case $opt in
     v) PG_VERSION=$OPTARG ;;
     i) IMG_NAME=$OPTARG ;;
     g) POSTGIS_VERSION=$OPTARG ;;
+    e) PGVECTOR_VERSION=$OPTARG ;;
     o) DOCKER_OPTS=$OPTARG ;;
     l) LITE_OPT=true ;;
     \?) exit 1 ;;
@@ -34,6 +36,7 @@ mkdir -p $TRG_DIR
 docker run -i --rm -v ${TRG_DIR}:/usr/local/pg-dist \
 -e PG_VERSION=$PG_VERSION \
 -e POSTGIS_VERSION=$POSTGIS_VERSION \
+-e PGVECTOR_VERSION=$PGVECTOR_VERSION \
 -e ICU_ENABLED=$ICU_ENABLED \
 -e PROJ_VERSION=6.0.0 \
 -e PROJ_DATUMGRID_VERSION=1.8 \
@@ -139,6 +142,15 @@ $DOCKER_OPTS $IMG_NAME /bin/bash -ex -c 'echo "Starting building postgres binari
             --with-gdalconfig=/usr/local/pg-build/bin/gdal-config \
         && make -j$(nproc) \
         && make install \
+    ; fi \
+    \
+    && if [ -n "$PGVECTOR_VERSION" ]; then \
+      wget -O pgvector.tar.gz "https://github.com/pgvector/pgvector/archive/refs/tags/v$PGVECTOR_VERSION.tar.gz" \
+        && mkdir -p /usr/src/pgvector \
+        && tar -xf pgvector.tar.gz -C /usr/src/pgvector --strip-components 1 \
+        && cd /usr/src/pgvector \
+        && make -j$(nproc) OPTFLAGS="" PG_CONFIG=/usr/local/pg-build/bin/pg_config \
+        && make OPTFLAGS="" PG_CONFIG=/usr/local/pg-build/bin/pg_config install \
     ; fi \
     \
     && cd /usr/local/pg-build \

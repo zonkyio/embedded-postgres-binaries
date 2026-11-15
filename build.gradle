@@ -11,6 +11,7 @@ ext {
     pgVersionParam = project.findProperty('pgVersion') ?: ("${project.version}" - '-SNAPSHOT')
     pgBinVersionParam = project.findProperty('pgBinVersion') ?: "${pgVersionParam}-1"
     postgisVersionParam = project.findProperty('postgisVersion') ?: ''
+    pgvectorVersionParam = project.findProperty('pgvectorVersion') ?: ''
     archNameParam = project.findProperty('archName') ?: ''
     distNameParam = project.findProperty('distName') ?: ''
     dockerImageParam = project.findProperty('dockerImage') ?: ''
@@ -27,6 +28,7 @@ allprojects {
 
     group 'io.zonky.test.postgres'
     version += postgisVersionParam ? "-postgis-$postgisVersionParam" : ''
+    version += pgvectorVersionParam ? "-pgvector-$pgvectorVersionParam" : ''
     archivesBaseName = 'embedded-postgres-binaries'
     sourceCompatibility = 1.6
 
@@ -117,7 +119,7 @@ def alpineVariants = [
 ]
 
 project(':repacked-platforms') {
-    if (!distNameParam && !archNameParam && !dockerImageParam && !postgisVersionParam) {
+    if (!distNameParam && !archNameParam && !dockerImageParam && !postgisVersionParam && !pgvectorVersionParam) {
         repackedPlatforms.each { platform ->
             task "build${platform.arch.capitalize()}${platform.name.capitalize()}Bundle"(group: "build (${platform.arch})", type: Exec, dependsOn: validateInputs) {
                 inputs.property('pgBinVersionParam', pgBinVersionParam)
@@ -180,7 +182,7 @@ project(':repacked-platforms') {
 }
 
 project(':debian-platforms') {
-    if (!distNameParam && !archNameParam && !dockerImageParam && !postgisVersionParam) {
+    if (!distNameParam && !archNameParam && !dockerImageParam && !postgisVersionParam && !pgvectorVersionParam) {
         debianPlatforms.each { platform ->
             task "build${platform.arch.capitalize()}DebianBundle"(group: "build (${platform.arch})", type: LazyExec, dependsOn: [validateInputs, prepareQemuExecutables]) {
                 def qemuBindings = { resolveQemuBindings() }
@@ -224,7 +226,7 @@ project(':debian-platforms') {
                 commandLine 'sh', "$rootDir/scripts/test-postgres-linux.sh",
                         '-j', "embedded-postgres-binaries-linux-${platform.arch}-${version}.jar",
                         '-z', "postgres-linux-${normalizeArchName(platform.arch)}.txz",
-                        '-i', dockerImage, '-v', "$pgVersionParam", '-g', postgisVersionParam, '-o', qemuBindings
+                        '-i', dockerImage, '-v', "$pgVersionParam", '-g', postgisVersionParam, '-e', pgvectorVersionParam, '-o', qemuBindings
             }
 
             artifacts.add('bundles', tasks.getByName("${platform.arch}DebianJar"))
@@ -234,7 +236,7 @@ project(':debian-platforms') {
 
 alpineVariants.each { variant ->
     project(":alpine${variant.name ? '-' + variant.name : ''}-platforms") {
-        if (!distNameParam && !archNameParam && !dockerImageParam && !postgisVersionParam && variant.enabled) {
+        if (!distNameParam && !archNameParam && !dockerImageParam && !postgisVersionParam && !pgvectorVersionParam && variant.enabled) {
             alpinePlatforms.each { platform ->
 
                 task "build${platform.arch.capitalize()}Alpine${variant.name.capitalize()}Bundle"(group: "build (${platform.arch})", type: LazyExec, dependsOn: [validateInputs, prepareQemuExecutables]) {
@@ -279,7 +281,7 @@ alpineVariants.each { variant ->
                     commandLine 'sh', "$rootDir/scripts/test-postgres-alpine.sh",
                             '-j', "embedded-postgres-binaries-linux-${platform.arch}-alpine${variant.name ? '-' + variant.name : ''}-${version}.jar",
                             '-z', "postgres-linux-${normalizeArchName(platform.arch)}-alpine_linux.txz",
-                            '-i', dockerImage, '-v', "$pgVersionParam", '-g', postgisVersionParam, '-o', qemuBindings
+                            '-i', dockerImage, '-v', "$pgVersionParam", '-g', postgisVersionParam, '-e', pgvectorVersionParam, '-o', qemuBindings
                 }
 
                 artifacts.add('bundles', tasks.getByName("${platform.arch}Alpine${variant.name.capitalize()}Jar"))
@@ -289,7 +291,7 @@ alpineVariants.each { variant ->
 }
 
 project(':custom-debian-platform') {
-    if (!distNameParam && (archNameParam || dockerImageParam || postgisVersionParam)) {
+    if (!distNameParam && (archNameParam || dockerImageParam || postgisVersionParam || pgvectorVersionParam)) {
         def archName = archNameParam ?: 'amd64'
 
         task buildCustomDebianBundle(group: 'build (custom)', type: LazyExec, dependsOn: [validateInputs, prepareQemuExecutables]) {
@@ -303,9 +305,10 @@ project(':custom-debian-platform') {
                 println "qemuBindings:  ${qemuBindings()}"
                 println ''
 
-                if (postgisVersionParam) {
+                if (postgisVersionParam || pgvectorVersionParam) {
                     println '===== Extensions ====='
-                    println "postgisVersion: $postgisVersionParam"
+                    if (postgisVersionParam) println "postgisVersion: $postgisVersionParam"
+                    if (pgvectorVersionParam) println "pgvectorVersion: $pgvectorVersionParam"
                     println '======================'
                     println ''
                 }
@@ -315,12 +318,13 @@ project(':custom-debian-platform') {
             inputs.property('archName', archName)
             inputs.property('dockerImage', dockerImage)
             inputs.property('postgisVersion', postgisVersionParam)
+            inputs.property('pgvectorVersion', pgvectorVersionParam)
 
             inputs.file("$rootDir/scripts/build-postgres-debian.sh")
             outputs.dir("$temporaryDir/bundle")
 
             workingDir temporaryDir
-            commandLine 'sh', "$rootDir/scripts/build-postgres-debian.sh", '-v', "$pgVersionParam", '-i', dockerImage, '-g', postgisVersionParam, '-o', qemuBindings
+            commandLine 'sh', "$rootDir/scripts/build-postgres-debian.sh", '-v', "$pgVersionParam", '-i', dockerImage, '-g', postgisVersionParam, '-e', pgvectorVersionParam, '-o', qemuBindings
         }
 
         task customDebianJar(group: 'build (custom)', type: Jar) {
@@ -338,6 +342,7 @@ project(':custom-debian-platform') {
             inputs.property('archName', archName)
             inputs.property('dockerImage', dockerImage)
             inputs.property('postgisVersion', postgisVersionParam)
+            inputs.property('pgvectorVersion', pgvectorVersionParam)
 
             inputs.file("$rootDir/scripts/test-postgres-linux.sh")
 
@@ -345,7 +350,7 @@ project(':custom-debian-platform') {
             commandLine 'sh', "$rootDir/scripts/test-postgres-linux.sh",
                     '-j', "embedded-postgres-binaries-linux-${archName}-${version}.jar",
                     '-z', "postgres-linux-${normalizeArchName(archName)}.txz",
-                    '-i', dockerImage, '-v', "$pgVersionParam", '-g', postgisVersionParam, '-o', qemuBindings
+                    '-i', dockerImage, '-v', "$pgVersionParam", '-g', postgisVersionParam, '-e', pgvectorVersionParam, '-o', qemuBindings
         }
 
         artifacts.add('bundles', tasks.getByName('customDebianJar'))
@@ -368,9 +373,10 @@ alpineVariants.each { variant ->
                     println "qemuBindings:  ${qemuBindings()}"
                     println ''
 
-                    if (postgisVersionParam) {
+                    if (postgisVersionParam || pgvectorVersionParam) {
                         println '===== Extensions ====='
-                        println "postgisVersion: $postgisVersionParam"
+                        if (postgisVersionParam) println "postgisVersion: $postgisVersionParam"
+                        if (pgvectorVersionParam) println "pgvectorVersion: $pgvectorVersionParam"
                         println '======================'
                         println ''
                     }
@@ -380,12 +386,13 @@ alpineVariants.each { variant ->
                 inputs.property('archName', archName)
                 inputs.property('dockerImage', dockerImage)
                 inputs.property('postgisVersion', postgisVersionParam)
+                inputs.property('pgvectorVersion', pgvectorVersionParam)
 
                 inputs.file("$rootDir/scripts/build-postgres-alpine.sh")
                 outputs.dir("$temporaryDir/bundle")
 
                 workingDir temporaryDir
-                commandLine 'sh', "$rootDir/scripts/build-postgres-alpine.sh", '-v', "$pgVersionParam", '-i', dockerImage, '-g', postgisVersionParam, '-o', qemuBindings, "${variant.opt}"
+                commandLine 'sh', "$rootDir/scripts/build-postgres-alpine.sh", '-v', "$pgVersionParam", '-i', dockerImage, '-g', postgisVersionParam, '-e', pgvectorVersionParam, '-o', qemuBindings, "${variant.opt}"
             }
 
             task "customAlpine${variant.name.capitalize()}Jar"(group: 'build (custom)', type: Jar) {
@@ -404,6 +411,7 @@ alpineVariants.each { variant ->
                 inputs.property('archName', archName)
                 inputs.property('dockerImage', dockerImage)
                 inputs.property('postgisVersion', postgisVersionParam)
+                inputs.property('pgvectorVersion', pgvectorVersionParam)
 
                 inputs.file("$rootDir/scripts/test-postgres-alpine.sh")
 
@@ -411,7 +419,7 @@ alpineVariants.each { variant ->
                 commandLine 'sh', "$rootDir/scripts/test-postgres-alpine.sh",
                         '-j', "embedded-postgres-binaries-linux-${archName}-alpine${variant.name ? '-' + variant.name : ''}-${version}.jar",
                         '-z', "postgres-linux-${normalizeArchName(archName)}-alpine_linux.txz",
-                        '-i', dockerImage, '-v', "$pgVersionParam", '-g', postgisVersionParam, '-o', qemuBindings
+                        '-i', dockerImage, '-v', "$pgVersionParam", '-g', postgisVersionParam, '-e', pgvectorVersionParam, '-o', qemuBindings
             }
 
             artifacts.add('bundles', tasks.getByName("customAlpine${variant.name.capitalize()}Jar"))

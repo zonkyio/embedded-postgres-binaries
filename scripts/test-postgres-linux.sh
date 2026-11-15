@@ -3,14 +3,16 @@ set -ex
 
 DOCKER_OPTS=
 POSTGIS_VERSION=
+PGVECTOR_VERSION=
 
-while getopts "j:z:i:v:g:o:" opt; do
+while getopts "j:z:i:v:g:e:o:" opt; do
     case $opt in
     j) JAR_FILE=$OPTARG ;;
     z) ZIP_FILE=$OPTARG ;;
     i) IMG_NAME=$OPTARG ;;
     v) PG_VERSION=$OPTARG ;;
     g) POSTGIS_VERSION=$OPTARG ;;
+    e) PGVECTOR_VERSION=$OPTARG ;;
     o) DOCKER_OPTS=$OPTARG ;;
     \?) exit 1 ;;
     esac
@@ -36,6 +38,7 @@ docker run -i --rm -v ${LIB_DIR}:/usr/local/pg-lib:ro \
 -e ZIP_FILE=$ZIP_FILE \
 -e PG_VERSION=$PG_VERSION \
 -e POSTGIS_VERSION=$POSTGIS_VERSION \
+-e PGVECTOR_VERSION=$PGVECTOR_VERSION \
 $DOCKER_OPTS $IMG_NAME /bin/bash -ex -c 'echo "Starting testing postgres binaries" \
     && apt-get update && apt-get install -y --no-install-recommends \
         postgresql-client \
@@ -61,4 +64,5 @@ $DOCKER_OPTS $IMG_NAME /bin/bash -ex -c 'echo "Starting testing postgres binarie
     \
     && if echo "$PG_VERSION" | grep -qvE '\''^(10|9)\.'\'' ; then test $(psql -qAtX -h localhost -p 65432 -U postgres -d postgres -c '\''SET jit_above_cost = 10; SELECT SUM(relpages) FROM pg_class;'\'') -gt 0 ; fi \
     \
-    && if [ -n "$POSTGIS_VERSION" ]; then test $(psql -qAtX -h localhost -p 65432 -U postgres -d postgres -c "CREATE EXTENSION postgis; SELECT PostGIS_Lib_Version();") = $POSTGIS_VERSION ; fi'
+    && if [ -n "$POSTGIS_VERSION" ]; then test $(psql -qAtX -h localhost -p 65432 -U postgres -d postgres -c "CREATE EXTENSION postgis; SELECT PostGIS_Lib_Version();") = $POSTGIS_VERSION ; fi \
+    && if [ -n "$PGVECTOR_VERSION" ]; then test $(psql -qAtX -h localhost -p 65432 -U postgres -d postgres -c "CREATE EXTENSION vector; SELECT extversion FROM pg_extension WHERE extname='\''vector'\'';") = $PGVECTOR_VERSION ; fi'

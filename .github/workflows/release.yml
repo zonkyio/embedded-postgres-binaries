@@ -262,7 +262,8 @@ jobs:
     name: Collect artifacts & Release ${{ github.event.milestone.title }}
     needs: [debian-arm32v7, debian-arm64v8, debian-ppc64le, alpine-arm32v6, alpine-arm64v8, alpine-ppc64le, alpine-lite-arm32v6, alpine-lite-arm64v8, alpine-lite-ppc64le]
     if: ${{ !failure() }}
-    runs-on: ubuntu-latest
+    # On ubuntu-26.04, apk inside i386/alpine containers fails to fetch package indexes (IO ERROR)
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout code
         uses: actions/checkout@v3

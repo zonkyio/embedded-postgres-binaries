@@ -38,7 +38,6 @@ docker run -i --rm -v ${LIB_DIR}:/usr/local/pg-lib:ro \
 -e POSTGIS_VERSION=$POSTGIS_VERSION \
 $DOCKER_OPTS $IMG_NAME /bin/bash -ex -c 'echo "Starting testing postgres binaries" \
     && apt-get update && apt-get install -y --no-install-recommends \
-        postgresql-client \
         xz-utils \
         unzip \
         \
@@ -55,10 +54,16 @@ $DOCKER_OPTS $IMG_NAME /bin/bash -ex -c 'echo "Starting testing postgres binarie
     && su test -c '\''/usr/local/pg-test/bin/initdb -A trust -U postgres -D /usr/local/pg-test/data -E UTF-8'\'' \
     && su test -c '\''/usr/local/pg-test/bin/pg_ctl -w -D /usr/local/pg-test/data -o "-p 65432 -F -c timezone=UTC -c synchronous_commit=off -c max_connections=300" start'\'' \
     \
-    && test $(psql -qAtX -h localhost -p 65432 -U postgres -d postgres -c "SHOW SERVER_VERSION") = $PG_VERSION \
-    && test $(psql -qAtX -h localhost -p 65432 -U postgres -d postgres -c "CREATE EXTENSION pgcrypto; SELECT digest('\''test'\'', '\''sha256'\'');") = "\x9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08" \
-    && echo $(psql -qAtX -h localhost -p 65432 -U postgres -d postgres -c '\''CREATE EXTENSION "uuid-ossp"; SELECT uuid_generate_v4();'\'') | grep -E '\''^[^-]{8}-[^-]{4}-[^-]{4}-[^-]{4}-[^-]{12}$'\'' \
+    && test $(/usr/local/pg-test/bin/psql -qAtX -h localhost -p 65432 -U postgres -d postgres -c "SHOW SERVER_VERSION") = $PG_VERSION \
+    && test $(/usr/local/pg-test/bin/psql -qAtX -h localhost -p 65432 -U postgres -d postgres -c "CREATE EXTENSION pgcrypto; SELECT digest('\''test'\'', '\''sha256'\'');") = "\x9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08" \
+    && echo $(/usr/local/pg-test/bin/psql -qAtX -h localhost -p 65432 -U postgres -d postgres -c '\''CREATE EXTENSION "uuid-ossp"; SELECT uuid_generate_v4();'\'') | grep -E '\''^[^-]{8}-[^-]{4}-[^-]{4}-[^-]{4}-[^-]{12}$'\'' \
     \
-    && if echo "$PG_VERSION" | grep -qvE '\''^(10|9)\.'\'' ; then test $(psql -qAtX -h localhost -p 65432 -U postgres -d postgres -c '\''SET jit_above_cost = 10; SELECT SUM(relpages) FROM pg_class;'\'') -gt 0 ; fi \
+    && /usr/local/pg-test/bin/psql -qAtX -h localhost -p 65432 -U postgres -d postgres -c "CREATE TABLE dump_test AS SELECT generate_series(1, 100) AS id;" \
+    && /usr/local/pg-test/bin/pg_dump -Fc -h localhost -p 65432 -U postgres -d postgres -t dump_test -f /tmp/dump_test.dump \
+    && /usr/local/pg-test/bin/psql -qAtX -h localhost -p 65432 -U postgres -d postgres -c "CREATE DATABASE restore_test;" \
+    && /usr/local/pg-test/bin/pg_restore -h localhost -p 65432 -U postgres -d restore_test /tmp/dump_test.dump \
+    && test $(/usr/local/pg-test/bin/psql -qAtX -h localhost -p 65432 -U postgres -d restore_test -c "SELECT COUNT(*) FROM dump_test;") = 100 \
     \
-    && if [ -n "$POSTGIS_VERSION" ]; then test $(psql -qAtX -h localhost -p 65432 -U postgres -d postgres -c "CREATE EXTENSION postgis; SELECT PostGIS_Lib_Version();") = $POSTGIS_VERSION ; fi'
+    && if echo "$PG_VERSION" | grep -qvE '\''^(10|9)\.'\'' ; then test $(/usr/local/pg-test/bin/psql -qAtX -h localhost -p 65432 -U postgres -d postgres -c '\''SET jit_above_cost = 10; SELECT SUM(relpages) FROM pg_class;'\'') -gt 0 ; fi \
+    \
+    && if [ -n "$POSTGIS_VERSION" ]; then test $(/usr/local/pg-test/bin/psql -qAtX -h localhost -p 65432 -U postgres -d postgres -c "CREATE EXTENSION postgis; SELECT PostGIS_Lib_Version();") = $POSTGIS_VERSION ; fi'

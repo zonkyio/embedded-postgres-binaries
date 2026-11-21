@@ -65,11 +65,6 @@ jobs:
         with:
           distribution: 'zulu'
           java-version: 15
-      - name: Install psql executables
-        run: |
-          brew update
-          brew install postgresql
-          echo "$(brew --prefix postgresql)/bin" >> $GITHUB_PATH
       - name: Test PostgreSQL bundle
         run: ./gradlew :repacked-platforms:testAmd64DarwinJar -Pversion=${{ matrix.postgres }}-TEST -PpgVersion=${{ matrix.postgres }}
         timeout-minutes: 10
@@ -90,9 +85,6 @@ jobs:
           java-version: 15
       - name: Install GNU Wget
         run: choco install wget
-      - name: Update system paths
-        run: echo $PGBIN >> $GITHUB_PATH
-        shell: bash
       - name: Test PostgreSQL bundle
         run: ./gradlew :repacked-platforms:testAmd64WindowsJar -Pversion=${{ matrix.postgres }}-TEST -PpgVersion=${{ matrix.postgres }}
         shell: bash
